@@ -1,0 +1,8 @@
+# Libraries imported by process2D.py and process3D.py
+numpy
+nibabel
+tqdm
+matplotlib
+# MVP 3D U-Net. Select the appropriate CPU/CUDA torch wheel separately.
+scipy
+torch>=2.3

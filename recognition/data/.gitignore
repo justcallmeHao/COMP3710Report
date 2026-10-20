@@ -1,0 +1,3 @@
+# Keep datasets out of version control while retaining their usage agreement.
+*
+!.gitignore

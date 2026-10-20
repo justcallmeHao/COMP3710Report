@@ -1,0 +1,14 @@
+{
+  "grid_dhw": [64, 128, 128],
+  "normalization": "all_voxels_zscore",
+  "normalization_epsilon": 1e-8,
+  "num_classes": 6,
+  "seed": 42,
+  "learning_rate": 0.001,
+  "batch_size": 1,
+  "num_workers": 0,
+  "steps": 20,
+  "epochs": 3,
+  "device": "cuda",
+  "amp": false
+}

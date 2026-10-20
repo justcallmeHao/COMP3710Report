@@ -1,0 +1,36 @@
+# Python bytecode, environments, and tool caches
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# Local editor and OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Temporary processing outputs and model artifacts
+/tmp/
+/outputs/
+/checkpoints/
+*.nii
+*.nii.gz
+*.npy
+*.npz
+*.pt
+*.pth
+*.ckpt
+*.h5
+*.hdf5
+*.log
+
+# Local credentials
+.env
+.env.*
+!.env.example
