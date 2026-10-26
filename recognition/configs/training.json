@@ -2,7 +2,6 @@
   "run_id": "pytorch_resunet_paper_adapted",
   "resume": false,
   "pipeline": {
-    "prepare": false,
     "train": true,
     "predict": true,
     "evaluate": true,
@@ -26,7 +25,7 @@
     "test_fraction": 0.2,
     "n_folds": 5,
     "folds_to_run": [
-      0
+      0, 1, 2, 3, 4
     ]
   },
   "preprocessing": {
@@ -90,7 +89,7 @@
     "lambda_ce": 1.0
   },
   "training": {
-    "epochs": 5,
+    "epochs": 2,
     "steps_per_epoch": 100,
     "validation_interval": 1,
     "learning_rate": 0.0005,

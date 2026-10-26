@@ -161,7 +161,7 @@ def run_fold(config, cases, splits, fold, directory, device, amp):
     return best_rows if best_rows is not None else read_json(directory / f"fold{fold}-best-cases.json")
 
 
-def train(config, prepared=None):
+def train(config):
     directory = OUTPUTS / config["run_id"]
     if config["resume"]:
         folds = config["data"]["folds_to_run"]
@@ -171,11 +171,8 @@ def train(config, prepared=None):
         cases = read_json(directory / "cases.json")
         splits = read_json(directory / "splits.json")
     else:
-        if prepared is None:
-            cases = discover(config)
-            splits = split_manifest(config, cases)
-        else:
-            cases, splits = prepared
+        cases = discover(config)
+        splits = split_manifest(config, cases)
         directory.mkdir(parents=True, exist_ok=False)
         write_json(directory / "config.json", config)
         write_json(directory / "cases.json", cases)
