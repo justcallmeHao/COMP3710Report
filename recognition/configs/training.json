@@ -1,0 +1,136 @@
+{
+  "run_id": "pytorch_resunet_cuda",
+  "resume": false,
+  "pipeline": {
+    "prepare": false,
+    "train": true,
+    "predict": true,
+    "evaluate": true,
+    "plot": true
+  },
+  "seed": 42,
+  "amp": true,
+  "data": {
+    "root": "data",
+    "image_dir": "semantic_MRs",
+    "label_dir": "semantic_labels_only",
+    "image_suffix": "_LFOV.nii.gz",
+    "label_suffix": "_SEMANTIC.nii.gz",
+    "patient_separator": "_Week",
+    "channel_names": [
+      "LFOV MRI (sequence unverified)"
+    ],
+    "labels_file": "configs/labels.json",
+    "splits_file": "configs/splits.json",
+    "official_test_patients": [],
+    "test_fraction": 0.2,
+    "n_folds": 5,
+    "folds_to_run": [
+      0
+    ]
+  },
+  "preprocessing": {
+    "target_spacing_mm": null,
+    "crop_margin": 4,
+    "foreground_threshold": 0.0,
+    "normalization_epsilon": 1e-08
+  },
+  "model": {
+    "channels": [
+      32,
+      64,
+      128,
+      256,
+      320
+    ],
+    "strides": [
+      2,
+      2,
+      2,
+      2
+    ],
+    "kernel_size": 3,
+    "up_kernel_size": 3,
+    "norm_epsilon": 1e-05,
+    "norm_affine": true,
+    "negative_slope": 0.01,
+    "dropout": 0.0,
+    "bias": true
+  },
+  "sampling": {
+    "patch_size": [
+      96,
+      96,
+      96
+    ],
+    "batch_size": 2,
+    "foreground_fraction": 0.33,
+    "memory_cache_mb": 1024
+  },
+  "augmentation": {
+    "spatial_probability": 0.2,
+    "rotation_degrees": 15.0,
+    "scale_range": [
+      0.9,
+      1.1
+    ],
+    "gamma_probability": 0.15,
+    "gamma_range": [
+      0.7,
+      1.5
+    ],
+    "noise_probability": 0.15,
+    "noise_std": 0.1,
+    "mirror_axes": [],
+    "mirror_probability": 0.0
+  },
+  "loss": {
+    "include_background": false,
+    "probability_floor": 1e-07,
+    "lambda_dice": 1.0,
+    "lambda_ce": 1.0
+  },
+  "training": {
+    "epochs": 10,
+    "steps_per_epoch": 150,
+    "validation_interval": 10,
+    "learning_rate": 0.01,
+    "momentum": 0.99,
+    "nesterov": true,
+    "weight_decay": 3e-05,
+    "polynomial_power": 0.9
+  },
+  "inference": {
+    "overlap": 0.25,
+    "batch_size": 1,
+    "sigma_scale": 0.125,
+    "checkpoint": "best",
+    "fold": 0,
+    "partition": "validation",
+    "case_ids": [],
+    "prediction_id": "validation_v1",
+    "weight_floor": 0.0001
+  },
+  "evaluation": {
+    "dice_target": 0.7
+  },
+  "graphs": {
+    "folds": [
+      0
+    ],
+    "figure_id": "figures_v1",
+    "overlay_cases": [],
+    "max_overlay_cases": 3,
+    "slice_fraction": 0.5,
+    "dpi": 140,
+    "alpha": 0.4,
+    "label_cmap": "tab10",
+    "image_cmap": "gray",
+    "figure_size": [
+      14,
+      10
+    ],
+    "point_size": 12,
+    "jitter": 0.08
+  }
+}

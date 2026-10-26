@@ -2,7 +2,12 @@
 numpy
 nibabel
 tqdm
-matplotlib
-# MVP 3D U-Net. Select the appropriate CPU/CUDA torch wheel separately.
+matplotlib>=3.9
+# MVP 3D U-Net
 scipy
-torch>=2.3
+# CUDA 13.0 build for the NVIDIA environment
+--find-links https://download.pytorch.org/whl/cu130/torch/
+torch==2.14.1+cu130
+# residual 3D pipeline; retain the soft Dice implementation
+torchmetrics==1.6.1
+scikit-learn>=1.6,<1.9

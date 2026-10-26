@@ -1,0 +1,18 @@
+{
+  "id_to_source": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "names": [
+    "background",
+    "label 1 (unverified)",
+    "label 2 (unverified)",
+    "label 3 (unverified)",
+    "label 4 (unverified)",
+    "label 5 (unverified)"
+  ]
+}
