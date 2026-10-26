@@ -1,3 +1,0 @@
-# Keep copied medical images out of Git; retain the manifest and documentation.
-/semantic_MRs/
-/semantic_labels_only/
