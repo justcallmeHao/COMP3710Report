@@ -1,5 +1,5 @@
 {
-  "run_id": "pytorch_resunet_cuda",
+  "run_id": "pytorch_resunet_paper_adapted",
   "resume": false,
   "pipeline": {
     "prepare": false,
@@ -37,11 +37,11 @@
   },
   "model": {
     "channels": [
+      16,
       32,
       64,
       128,
-      256,
-      320
+      256
     ],
     "strides": [
       2,
@@ -50,11 +50,10 @@
       2
     ],
     "kernel_size": 3,
-    "up_kernel_size": 3,
     "norm_epsilon": 1e-05,
     "norm_affine": true,
     "negative_slope": 0.01,
-    "dropout": 0.0,
+    "dropout": 0.3,
     "bias": true
   },
   "sampling": {
@@ -91,17 +90,15 @@
     "lambda_ce": 1.0
   },
   "training": {
-    "epochs": 10,
-    "steps_per_epoch": 150,
-    "validation_interval": 10,
-    "learning_rate": 0.01,
-    "momentum": 0.99,
-    "nesterov": true,
-    "weight_decay": 3e-05,
-    "polynomial_power": 0.9
+    "epochs": 5,
+    "steps_per_epoch": 100,
+    "validation_interval": 1,
+    "learning_rate": 0.0005,
+    "weight_decay": 0.00001,
+    "lr_decay": 0.985
   },
   "inference": {
-    "overlap": 0.25,
+    "overlap": 0.5,
     "batch_size": 1,
     "sigma_scale": 0.125,
     "checkpoint": "best",

@@ -98,10 +98,9 @@ def run_fold(config, cases, splits, fold, directory, device, amp):
                         pin_memory=device.type == "cuda", generator=generator)
     model = ResidualUNet3D(resolved["model"], len(resolved["data"]["channel_names"]), len(resolved["labels"]["names"])).to(device)
     settings = config["training"]
-    optimizer = torch.optim.SGD(model.parameters(), lr=settings["learning_rate"], momentum=settings["momentum"],
-                                nesterov=settings["nesterov"], weight_decay=settings["weight_decay"])
-    scheduler = torch.optim.lr_scheduler.PolynomialLR(optimizer, total_iters=settings["epochs"],
-                                                     power=settings["polynomial_power"])
+    optimizer = torch.optim.Adam(model.parameters(), lr=settings["learning_rate"],
+                                 weight_decay=settings["weight_decay"])
+    scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=settings["lr_decay"])
     scaler = torch.amp.GradScaler("cuda", enabled=amp)
     latest, best = directory / f"fold{fold}-latest.pt", directory / f"fold{fold}-best.pt"
     epoch_log = directory / f"fold{fold}-epochs.csv"
