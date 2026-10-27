@@ -1,0 +1,5 @@
+# Optional use: this one is for me to save  historical training results manually
+# This folder is empty to store local results manually only
+# This folder won't be used in the main pipeline
+*
+!.gitignore
