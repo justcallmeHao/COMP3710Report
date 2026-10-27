@@ -89,7 +89,7 @@
     "lambda_ce": 1.0
   },
   "training": {
-    "epochs": 2,
+    "epochs": 1,
     "steps_per_epoch": 100,
     "validation_interval": 1,
     "learning_rate": 0.0005,
@@ -101,7 +101,7 @@
     "batch_size": 1,
     "sigma_scale": 0.125,
     "checkpoint": "best",
-    "fold": 0,
+    "folds": [0, 1, 2, 3, 4],
     "partition": "validation",
     "case_ids": [],
     "prediction_id": "validation_v1",
@@ -112,7 +112,7 @@
   },
   "graphs": {
     "folds": [
-      0
+      0, 1, 2, 3, 4
     ],
     "figure_id": "figures_v1",
     "overlay_cases": [],
