@@ -105,6 +105,7 @@ def run_fold(config, cases, splits, fold, directory, device, amp):
     latest, best = directory / f"fold{fold}-latest.pt", directory / f"fold{fold}-best.pt"
     epoch_log = directory / f"fold{fold}-epochs.csv"
     start, best_score, history = 1, -1.0, []
+    target_count = 0
     best_rows = None
     if config["resume"]:
         checkpoint = torch.load(latest, map_location="cpu", weights_only=False)
@@ -115,11 +116,15 @@ def run_fold(config, cases, splits, fold, directory, device, amp):
         restore_rng(checkpoint["rng"])
         generator.set_state(checkpoint["loader_rng"])
         start, best_score, history = checkpoint["epoch"] + 1, checkpoint["best_score"], checkpoint["history"]
+        target_count = checkpoint.get("target_count", 0)
         write_csv(epoch_log, history)
     write_json(directory / f"fold{fold}-config.json", resolved)
     write_json(directory / f"fold{fold}-runtime.json", versions(device))
     print(f"Fold {fold}: {len(training_cases)} training scans; spacing {resolved['preprocessing']['target_spacing_mm']}")
     for epoch in range(start, settings["epochs"] + 1):
+        if target_count >= 2:
+            print(f"Fold {fold}: stopped after two consecutive validations with Dice > 0.70.", flush=True)
+            break
         began = time.perf_counter()
         learning_rate = optimizer.param_groups[0]["lr"]
         train_losses = train_epoch(model, loader, resolved["loss"], optimizer, scaler, device, amp)
@@ -128,6 +133,7 @@ def run_fold(config, cases, splits, fold, directory, device, amp):
             validation_losses, rows = validate(model, validation_cases, resolved, device, amp)
             summary = save_metrics(directory, f"fold{fold}-epoch{epoch:04d}", rows, resolved)
             metrics = summary["foreground_macro"]
+            target_count = target_count + 1 if metrics["dice"] is not None and metrics["dice"] > 0.70 else 0
             improved = metrics["dice"] is not None and metrics["dice"] > best_score
             if improved:
                 best_score = metrics["dice"]
@@ -142,6 +148,7 @@ def run_fold(config, cases, splits, fold, directory, device, amp):
         state = {"model": model.state_dict(), "optimizer": optimizer.state_dict(),
                  "scheduler": scheduler.state_dict(), "scaler": scaler.state_dict(),
                  "epoch": epoch, "best_score": best_score, "config": resolved, "fold": fold,
+                 "target_count": target_count,
                  "splits": splits, "cases": cases, "rng": rng_state(), "loader_rng": generator.get_state(),
                  "history": history, "versions": versions(device)}
         if improved:
@@ -157,6 +164,9 @@ def run_fold(config, cases, splits, fold, directory, device, amp):
         print(f"Fold {fold} epoch {epoch}/{settings['epochs']}: train={train_losses[0]:.4f}, "
               f"validation={validation_losses[0]}, Dice={metrics['dice']}, "
               f"lr={learning_rate:.6g}, seconds={row['seconds']:.1f}", flush=True)
+        if target_count >= 2:
+            print(f"Fold {fold}: stopped after two consecutive validations with Dice > 0.70.", flush=True)
+            break
 
     return best_rows if best_rows is not None else read_json(directory / f"fold{fold}-best-cases.json")
 
