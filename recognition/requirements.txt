@@ -3,6 +3,7 @@ numpy
 nibabel
 tqdm
 matplotlib>=3.9
+pandas
 # MVP 3D U-Net
 scipy
 # CUDA 13.0 build for the NVIDIA environment
@@ -11,3 +12,4 @@ torch==2.14.1+cu130
 # residual 3D pipeline; retain the soft Dice implementation
 torchmetrics==1.6.1
 scikit-learn>=1.6,<1.9
+
