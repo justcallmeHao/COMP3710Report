@@ -1,6 +1,5 @@
 {
   "run_id": "pytorch_resunet_paper_adapted",
-  "resume": false,
   "pipeline": {
     "train": true,
     "predict": true,

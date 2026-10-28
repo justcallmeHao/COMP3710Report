@@ -1,5 +1,4 @@
 import csv
-import random
 import time
 from collections import Counter
 
@@ -10,29 +9,9 @@ from torch.utils.data import DataLoader, WeightedRandomSampler
 from torchmetrics.functional.segmentation import dice_score
 
 from .data import OUTPUTS, ROOT, PatchDataset, discover, load_volume, read_json, resolve_spacing, select_cases, write_json
-from .evaluate import METRICS, case_metrics, label_tensor, save_metrics, write_csv
+from .evaluate import METRICS, case_metrics, label_tensor, save_metrics
 from .model import ResidualUNet3D
-from .predict import infer_volume, seed_state, select_device, versions
-
-
-def rng_state():
-    return {"python": random.getstate(), "numpy": np.random.get_state(),
-            "torch": torch.get_rng_state(),
-            "cuda": torch.cuda.get_rng_state_all() if torch.cuda.is_available() else []}
-
-
-def restore_rng(state):
-    random.setstate(state["python"])
-    np.random.set_state(state["numpy"])
-    torch.set_rng_state(state["torch"])
-    if state["cuda"]:
-        torch.cuda.set_rng_state_all(state["cuda"])
-
-
-def save_checkpoint(path, state):
-    temporary = path.with_suffix(".tmp")
-    torch.save(state, temporary)
-    temporary.replace(path)
+from .predict import infer_volume, select_device, versions
 
 
 def segmentation_loss(logits, target, settings):
@@ -80,54 +59,43 @@ def validate(model, cases, config, device, amp):
 
 
 def run_training(config, cases, splits, directory, device, amp):
-    groups = splits
-    training_cases = select_cases(cases, groups["train"])
+    training_cases = select_cases(cases, splits["train"])
+    validation_cases = select_cases(cases, splits["validation"])
+    settings = config["training"]
     resolved = resolve_spacing(config, training_cases)
-    seed = config["seed"]
-    seed_state(seed)
-    validation_cases = select_cases(cases, groups["validation"])
-    generator = torch.Generator().manual_seed(seed)
     batch_size = resolved["training"]["batch_size"]
+
     counts = Counter(case["patient_id"] for case in training_cases)
     weights = [1 / counts[case["patient_id"]] for case in training_cases]
     sampler = WeightedRandomSampler(weights, config["training"]["steps_per_epoch"] * batch_size,
-                                    replacement=True, generator=generator)
+                                    replacement=True)
+
     dataset = PatchDataset(training_cases, resolved["preprocessing"],
                            resolved["labels"]["id_to_source"])
     loader = DataLoader(dataset, batch_size=batch_size, sampler=sampler,
-                        pin_memory=device.type == "cuda", generator=generator)
+                        pin_memory=device.type == "cuda")
+
     model = ResidualUNet3D(resolved["model"], len(resolved["data"]["channel_names"]), len(resolved["labels"]["names"])).to(device)
-    settings = config["training"]
     optimizer = torch.optim.Adam(model.parameters(), lr=settings["learning_rate"],
                                  weight_decay=settings["weight_decay"])
     scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=settings["lr_decay"])
     scaler = torch.amp.GradScaler("cuda", enabled=amp)
+
     latest, best = directory / "latest.pt", directory / "best.pt"
     epoch_log = directory / "epochs.csv"
-    start, best_score, history = 1, -1.0, []
-    target_count = 0
+    best_score = -1.0
     best_rows = None
-    if config["resume"]:
-        checkpoint = torch.load(latest, map_location="cpu", weights_only=False)
-        model.load_state_dict(checkpoint["model"])
-        optimizer.load_state_dict(checkpoint["optimizer"])
-        scheduler.load_state_dict(checkpoint["scheduler"])
-        scaler.load_state_dict(checkpoint["scaler"])
-        restore_rng(checkpoint["rng"])
-        generator.set_state(checkpoint["loader_rng"])
-        start, best_score, history = checkpoint["epoch"] + 1, checkpoint["best_score"], checkpoint["history"]
-        target_count = checkpoint.get("target_count", 0)
-        write_csv(epoch_log, history)
+    target_count = 0
+
     write_json(directory / "resolved-config.json", resolved)
     write_json(directory / "runtime.json", versions(device))
     print(f"{len(training_cases)} training scans; spacing {resolved['preprocessing']['target_spacing_mm']}")
-    for epoch in range(start, settings["epochs"] + 1):
-        if target_count >= 2:
-            print("stopped after two consecutive validations with Dice > 0.70.", flush=True)
-            break
+
+    for epoch in range(1, settings["epochs"] + 1):
         began = time.perf_counter()
         learning_rate = optimizer.param_groups[0]["lr"]
         train_losses = train_epoch(model, loader, resolved["loss"], optimizer, scaler, device, amp)
+
         validation_losses, metrics, improved = [None] * 3, dict.fromkeys(METRICS), False
         if epoch % settings["validation_interval"] == 0 or epoch == settings["epochs"]:
             validation_losses, rows = validate(model, validation_cases, resolved, device, amp)
@@ -135,25 +103,26 @@ def run_training(config, cases, splits, directory, device, amp):
             metrics = summary["foreground_macro"]
             target_count = target_count + 1 if metrics["dice"] is not None and metrics["dice"] > 0.70 else 0
             improved = metrics["dice"] is not None and metrics["dice"] > best_score
+
             if improved:
                 best_score = metrics["dice"]
                 best_rows = rows
                 save_metrics(directory, "best", rows, resolved)
+
         scheduler.step()
+
         row = {"epoch": epoch, "learning_rate": learning_rate, "seconds": time.perf_counter() - began,
                **{f"train_{name}": value for name, value in zip(("loss", "dice_loss", "ce_loss"), train_losses)},
                **{f"validation_{name}": value for name, value in zip(("loss", "dice_loss", "ce_loss"), validation_losses)},
                **{f"validation_{metric}": metrics[metric] for metric in METRICS}}
-        history.append(row)
-        state = {"model": model.state_dict(), "optimizer": optimizer.state_dict(),
-                 "scheduler": scheduler.state_dict(), "scaler": scaler.state_dict(),
+
+        state = {"model": model.state_dict(),
                  "epoch": epoch, "best_score": best_score, "config": resolved,
-                 "target_count": target_count,
-                 "splits": splits, "cases": cases, "rng": rng_state(), "loader_rng": generator.get_state(),
-                 "history": history, "versions": versions(device)}
+                 "splits": splits, "cases": cases}
         if improved:
-            save_checkpoint(best, state)
-        save_checkpoint(latest, state)
+            torch.save(state, best)
+        torch.save(state, latest)
+
         exists = epoch_log.exists()
         with epoch_log.open("a", newline="", encoding="utf-8") as stream:
             writer = csv.DictWriter(stream, fieldnames=list(row))
@@ -161,33 +130,27 @@ def run_training(config, cases, splits, directory, device, amp):
                 writer.writeheader()
             writer.writerow(row)
             stream.flush()
+
         print(f"Epoch {epoch}/{settings['epochs']}: train={train_losses[0]:.4f}, "
               f"validation={validation_losses[0]}, Dice={metrics['dice']}, "
               f"lr={learning_rate:.6g}, seconds={row['seconds']:.1f}", flush=True)
+
         if target_count >= 2:
             print("stopped after two consecutive validations with Dice > 0.70.", flush=True)
             break
 
-    return best_rows if best_rows is not None else read_json(directory / "best-cases.json")
+    return best_rows
 
 
 def train(config):
     directory = OUTPUTS / config["run_id"]
-    if config["resume"]:
-        config = read_json(directory / "config.json")
-        config["resume"] = True
-        cases = read_json(directory / "cases.json")
     splits = read_json(ROOT / config["data"]["splits_file"])
-    if not config["resume"]:
-        cases = discover(config)
-        directory.mkdir(parents=True, exist_ok=False)
-        write_json(directory / "config.json", config)
-        write_json(directory / "cases.json", cases)
+    cases = discover(config)
+    directory.mkdir(parents=True, exist_ok=False)
     device, amp = select_device(config["amp"])
     print(f"Run {config['run_id']}: "
           f"epochs={config['training']['epochs']}, steps={config['training']['steps_per_epoch']}, "
           f"batch={config['training']['batch_size']}, "
-          f"channels={config['model']['channels']}, lr={config['training']['learning_rate']}, "
-          f"seed={config['seed']}", flush=True)
+          f"channels={config['model']['channels']}, lr={config['training']['learning_rate']}", flush=True)
     rows = run_training(config, cases, splits, directory, device, amp)
     save_metrics(directory, "validation", rows, config)
