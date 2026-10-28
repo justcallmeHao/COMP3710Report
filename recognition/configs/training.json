@@ -89,7 +89,7 @@
     "lambda_ce": 1.0
   },
   "training": {
-    "epochs": 50,
+    "epochs": 2,
     "steps_per_epoch": 100,
     "validation_interval": 1,
     "learning_rate": 0.0005,

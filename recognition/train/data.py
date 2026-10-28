@@ -114,7 +114,9 @@ class PatchDataset(Dataset):
         return len(self.cases)
 
     def __getitem__(self, index):
-        item = load_volume(self.cases[index], self.preprocessing, self.id_to_source)  # load the full scan and label
-        image = np.ascontiguousarray(item["image"][None], dtype=np.float32)  # add the channel dimension
+        # load the full scan and label
+        item = load_volume(self.cases[index], self.preprocessing, self.id_to_source) 
+        # add the channel dimension 
+        image = np.ascontiguousarray(item["image"][None], dtype=np.float32)  
         label = np.ascontiguousarray(item["label"][None], dtype=np.int64)
         return {"image": torch.from_numpy(image), "label": torch.from_numpy(label)}
