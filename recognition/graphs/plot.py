@@ -20,8 +20,8 @@ def column(rows, name):
     return np.asarray([float(row[name]) if row[name] else np.nan for row in rows])
 
 
-def learning_curves(run, destination, fold, settings):
-    rows = csv_rows(run / f"fold{fold}-epochs.csv")
+def learning_curves(run, destination, settings):
+    rows = csv_rows(run / "epochs.csv")
     epochs = column(rows, "epoch")
     fig, axes = plt.subplots(2, 3, figsize=settings["figure_size"], layout="constrained")
     for axis, metric, title in zip(axes[0], ("loss", "dice_loss", "ce_loss"),
@@ -38,7 +38,7 @@ def learning_curves(run, destination, fold, settings):
     axes[1, 1].set(xlabel="Epoch", ylabel="Learning rate")
     axes[1, 2].plot(epochs, column(rows, "seconds"))
     axes[1, 2].set(xlabel="Epoch", ylabel="Epoch seconds")
-    fig.savefig(destination / f"fold{fold}-learning.png", dpi=settings["dpi"])
+    fig.savefig(destination / "learning.png", dpi=settings["dpi"])
     plt.close(fig)
 
 
@@ -102,9 +102,8 @@ def plot(config):
     run = OUTPUTS / config["run_id"]
     destination = run / settings["figure_id"]
     destination.mkdir(exist_ok=False)
-    for fold in settings["folds"]:
-        learning_curves(run, destination, fold, settings)
-        score_boxes(run / f"fold{fold}-best-patients.csv", destination, settings, config["seed"])
+    learning_curves(run, destination, settings)
+    score_boxes(run / "best-patients.csv", destination, settings, config["seed"])
     prediction_dir = run / config["inference"]["prediction_id"]
     if (prediction_dir / "predictions.json").exists():
         overlays(prediction_dir, destination, settings)
