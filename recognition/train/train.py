@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader, WeightedRandomSampler
 from torchmetrics.functional.segmentation import dice_score
 
 from .data import OUTPUTS, ROOT, PatchDataset, discover, load_volume, read_json, resolve_spacing, select_cases, split_manifest, write_json
-from .evaluate import METRICS, case_metrics, label_tensor, save_metrics, summarize, write_csv
+from .evaluate import METRICS, case_metrics, label_tensor, save_metrics, write_csv
 from .model import ResidualUNet3D
 from .predict import infer_volume, seed_state, select_device, versions
 
@@ -79,22 +79,22 @@ def validate(model, cases, config, device, amp):
     return np.mean(losses, axis=0).tolist(), rows
 
 
-def run_fold(config, cases, splits, fold, directory, device, amp):
-    groups = splits["folds"][fold]
+def run_training(config, cases, splits, directory, device, amp):
+    groups = splits
     training_cases = select_cases(cases, groups["train"])
     resolved = resolve_spacing(config, training_cases)
-    seed = config["seed"] + fold
+    seed = config["seed"]
     seed_state(seed)
     validation_cases = select_cases(cases, groups["validation"])
     generator = torch.Generator().manual_seed(seed)
-    sampling = resolved["sampling"]
+    batch_size = resolved["training"]["batch_size"]
     counts = Counter(case["patient_id"] for case in training_cases)
     weights = [1 / counts[case["patient_id"]] for case in training_cases]
-    sampler = WeightedRandomSampler(weights, config["training"]["steps_per_epoch"] * sampling["batch_size"],
+    sampler = WeightedRandomSampler(weights, config["training"]["steps_per_epoch"] * batch_size,
                                     replacement=True, generator=generator)
-    dataset = PatchDataset(training_cases, sampling, resolved["augmentation"], resolved["preprocessing"],
+    dataset = PatchDataset(training_cases, resolved["preprocessing"],
                            resolved["labels"]["id_to_source"])
-    loader = DataLoader(dataset, batch_size=sampling["batch_size"], sampler=sampler,
+    loader = DataLoader(dataset, batch_size=batch_size, sampler=sampler,
                         pin_memory=device.type == "cuda", generator=generator)
     model = ResidualUNet3D(resolved["model"], len(resolved["data"]["channel_names"]), len(resolved["labels"]["names"])).to(device)
     settings = config["training"]
@@ -102,8 +102,8 @@ def run_fold(config, cases, splits, fold, directory, device, amp):
                                  weight_decay=settings["weight_decay"])
     scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=settings["lr_decay"])
     scaler = torch.amp.GradScaler("cuda", enabled=amp)
-    latest, best = directory / f"fold{fold}-latest.pt", directory / f"fold{fold}-best.pt"
-    epoch_log = directory / f"fold{fold}-epochs.csv"
+    latest, best = directory / "latest.pt", directory / "best.pt"
+    epoch_log = directory / "epochs.csv"
     start, best_score, history = 1, -1.0, []
     target_count = 0
     best_rows = None
@@ -118,12 +118,12 @@ def run_fold(config, cases, splits, fold, directory, device, amp):
         start, best_score, history = checkpoint["epoch"] + 1, checkpoint["best_score"], checkpoint["history"]
         target_count = checkpoint.get("target_count", 0)
         write_csv(epoch_log, history)
-    write_json(directory / f"fold{fold}-config.json", resolved)
-    write_json(directory / f"fold{fold}-runtime.json", versions(device))
-    print(f"Fold {fold}: {len(training_cases)} training scans; spacing {resolved['preprocessing']['target_spacing_mm']}")
+    write_json(directory / "resolved-config.json", resolved)
+    write_json(directory / "runtime.json", versions(device))
+    print(f"{len(training_cases)} training scans; spacing {resolved['preprocessing']['target_spacing_mm']}")
     for epoch in range(start, settings["epochs"] + 1):
         if target_count >= 2:
-            print(f"Fold {fold}: stopped after two consecutive validations with Dice > 0.70.", flush=True)
+            print("stopped after two consecutive validations with Dice > 0.70.", flush=True)
             break
         began = time.perf_counter()
         learning_rate = optimizer.param_groups[0]["lr"]
@@ -131,14 +131,14 @@ def run_fold(config, cases, splits, fold, directory, device, amp):
         validation_losses, metrics, improved = [None] * 3, dict.fromkeys(METRICS), False
         if epoch % settings["validation_interval"] == 0 or epoch == settings["epochs"]:
             validation_losses, rows = validate(model, validation_cases, resolved, device, amp)
-            summary = save_metrics(directory, f"fold{fold}-epoch{epoch:04d}", rows, resolved)
+            summary = save_metrics(directory, f"epoch{epoch:04d}", rows, resolved)
             metrics = summary["foreground_macro"]
             target_count = target_count + 1 if metrics["dice"] is not None and metrics["dice"] > 0.70 else 0
             improved = metrics["dice"] is not None and metrics["dice"] > best_score
             if improved:
                 best_score = metrics["dice"]
                 best_rows = rows
-                save_metrics(directory, f"fold{fold}-best", rows, resolved)
+                save_metrics(directory, "best", rows, resolved)
         scheduler.step()
         row = {"epoch": epoch, "learning_rate": learning_rate, "seconds": time.perf_counter() - began,
                **{f"train_{name}": value for name, value in zip(("loss", "dice_loss", "ce_loss"), train_losses)},
@@ -147,7 +147,7 @@ def run_fold(config, cases, splits, fold, directory, device, amp):
         history.append(row)
         state = {"model": model.state_dict(), "optimizer": optimizer.state_dict(),
                  "scheduler": scheduler.state_dict(), "scaler": scaler.state_dict(),
-                 "epoch": epoch, "best_score": best_score, "config": resolved, "fold": fold,
+                 "epoch": epoch, "best_score": best_score, "config": resolved,
                  "target_count": target_count,
                  "splits": splits, "cases": cases, "rng": rng_state(), "loader_rng": generator.get_state(),
                  "history": history, "versions": versions(device)}
@@ -161,22 +161,20 @@ def run_fold(config, cases, splits, fold, directory, device, amp):
                 writer.writeheader()
             writer.writerow(row)
             stream.flush()
-        print(f"Fold {fold} epoch {epoch}/{settings['epochs']}: train={train_losses[0]:.4f}, "
+        print(f"Epoch {epoch}/{settings['epochs']}: train={train_losses[0]:.4f}, "
               f"validation={validation_losses[0]}, Dice={metrics['dice']}, "
               f"lr={learning_rate:.6g}, seconds={row['seconds']:.1f}", flush=True)
         if target_count >= 2:
-            print(f"Fold {fold}: stopped after two consecutive validations with Dice > 0.70.", flush=True)
+            print("stopped after two consecutive validations with Dice > 0.70.", flush=True)
             break
 
-    return best_rows if best_rows is not None else read_json(directory / f"fold{fold}-best-cases.json")
+    return best_rows if best_rows is not None else read_json(directory / "best-cases.json")
 
 
 def train(config):
     directory = OUTPUTS / config["run_id"]
     if config["resume"]:
-        folds = config["data"]["folds_to_run"]
         config = read_json(directory / "config.json")
-        config["data"]["folds_to_run"] = folds
         config["resume"] = True
         cases = read_json(directory / "cases.json")
         splits = read_json(directory / "splits.json")
@@ -188,18 +186,10 @@ def train(config):
         write_json(directory / "cases.json", cases)
         write_json(directory / "splits.json", splits)
     device, amp = select_device(config["amp"])
-    print(f"Run {config['run_id']}: folds={config['data']['folds_to_run']}, "
+    print(f"Run {config['run_id']}: "
           f"epochs={config['training']['epochs']}, steps={config['training']['steps_per_epoch']}, "
-          f"patch={config['sampling']['patch_size']}, batch={config['sampling']['batch_size']}, "
+          f"batch={config['training']['batch_size']}, "
           f"channels={config['model']['channels']}, lr={config['training']['learning_rate']}, "
           f"seed={config['seed']}", flush=True)
-    rows, folds = [], []
-    for fold in config["data"]["folds_to_run"]:
-        fold_rows = run_fold(config, cases, splits, fold, directory, device, amp)
-        rows.extend(fold_rows)
-        folds.append({"fold": fold, **summarize(fold_rows, config)[1]["foreground_macro"]})
-    summary = save_metrics(directory, "development-oof", rows, config)
-    summary["folds"] = folds
-    summary["complete_development_coverage"] = len(folds) == len(splits["folds"])
-    write_json(directory / "development-oof-summary.json", summary)
-
+    rows = run_training(config, cases, splits, directory, device, amp)
+    save_metrics(directory, "validation", rows, config)

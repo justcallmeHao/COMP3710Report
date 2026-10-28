@@ -58,7 +58,7 @@ def restore_probabilities(probabilities, geometry):
 @torch.inference_mode()
 def infer_volume(model, item, config, device, amp):
     settings = config["inference"]
-    patch = config["sampling"]["patch_size"]
+    patch = settings["patch_size"]
     image = torch.from_numpy(item["image"]).unsqueeze(0)
     original_shape = image.shape[1:]
     padding = [value for size, length in reversed(list(zip(original_shape, patch)))
@@ -104,29 +104,28 @@ def save_prediction(path, labels, case, config):
 def predict(requested, evaluate_results=False):
     settings = requested["inference"]
     run = OUTPUTS / requested["run_id"]
-    fold = settings["fold"]
-    checkpoint_path = run / f"fold{fold}-{settings['checkpoint']}.pt"
+    checkpoint_path = run / f"{settings['checkpoint']}.pt"
     checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
     config = checkpoint["config"]
     config["inference"] = settings
     config["amp"] = requested["amp"]
     manifest, cases = checkpoint["splits"], checkpoint["cases"]
     partition = settings["partition"]
-    patients = {"test": manifest["test"], "validation": manifest["folds"][fold]["validation"]}[partition]
+    patients = manifest[partition]
     selected = select_cases(cases, patients)
     if partition == "validation" and settings["case_ids"]:
         by_id = {case["case_id"]: case for case in selected}
         selected = [by_id[case_id] for case_id in dict.fromkeys(settings["case_ids"])]
     directory = run / settings["prediction_id"]
     directory.mkdir(parents=True, exist_ok=False)
-    protocol = {"fold": fold, "partition": partition, "checkpoint": str(checkpoint_path),
+    protocol = {"partition": partition, "checkpoint": str(checkpoint_path),
                 "checkpoint_epoch": checkpoint["epoch"], "checkpoint_best_score": checkpoint["best_score"],
                 "prediction_id": settings["prediction_id"]}
     if partition == "test":
         with (run / "test-protocol.json").open("x", encoding="utf-8") as stream:
             stream.write(json.dumps(protocol, indent=2))
     device, amp = select_device(config["amp"])
-    seed_state(config["seed"] + fold)
+    seed_state(config["seed"])
     model = ResidualUNet3D(config["model"], len(config["data"]["channel_names"]), len(config["labels"]["names"])).to(device)
     model.load_state_dict(checkpoint["model"])
     model.eval()
@@ -134,7 +133,7 @@ def predict(requested, evaluate_results=False):
     for case in selected:
         item = load_volume(case, config["preprocessing"], config["labels"]["id_to_source"], with_label=False)
         _, probabilities = infer_volume(model, item, config, device, amp)
-        filename = f"fold{fold}-{case['case_id']}-prediction.nii.gz"
+        filename = f"{case['case_id']}-prediction.nii.gz"
         labels = probabilities.argmax(0)
         save_prediction(directory / filename, labels, case, config)
         if evaluate_results:
