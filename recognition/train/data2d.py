@@ -1,9 +1,16 @@
+import json
+from pathlib import Path
+
 import nibabel as nib
 import numpy as np
 import torch
 from torch.utils.data import Dataset
 
-from .data import ROOT
+ROOT = Path(__file__).resolve().parents[1]
+OUTPUTS = ROOT / "outputs"
+
+def write_json(path, value):
+    Path(path).write_text(json.dumps(value, indent=2, allow_nan=False), encoding="utf-8")
 
 
 def discover(partition):

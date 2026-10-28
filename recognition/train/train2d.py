@@ -2,8 +2,7 @@ import torch
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
 
-from .data import OUTPUTS, write_json
-from .data2d import SliceDataset, discover
+from .data2d import OUTPUTS, SliceDataset, discover, write_json
 from .model2d import ResidualUNet2D
 
 
@@ -12,7 +11,6 @@ def segmentation_loss(logits, target, settings):
     probabilities = logits.float().softmax(1)
     truth = F.one_hot(target, num_classes=6).movedim(-1, 1).float()
 
-    # keep soft probabilities differentiable for Dice loss
     intersection = (probabilities * truth).sum(dim=(2, 3))
     denominator = probabilities.sum(dim=(2, 3)) + truth.sum(dim=(2, 3))
     epsilon = settings["probability_floor"]
@@ -58,7 +56,7 @@ def validate(model, loader, device, amp):
 
 
 def train(config):
-    # separate 2D results from the corresponding 3D run
+    # naming 2D save files different from 3D
     run_id = config["run_id"]
     run_id = run_id if run_id.endswith("_2d") else f"{run_id}_2d"
     config = {**config, "run_id": run_id}
