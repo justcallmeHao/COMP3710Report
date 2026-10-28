@@ -11,9 +11,10 @@ def main():
     stages = config["pipeline"]
     if stages["train"]:
         train(config)
-    predictions = predict(config, evaluate_results=stages["evaluate"]) if stages["predict"] else None
+    if stages["predict"]:
+        predict(config)
     if stages["evaluate"]:
-        evaluate(config, predictions)
+        evaluate(config)
     if stages["plot"]:
         plot(config)
 

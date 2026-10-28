@@ -124,23 +124,18 @@ def save_metrics(directory, prefix, rows, config):
     return summary
 
 
-def evaluate(requested, predictions=None):
+def evaluate(requested):
+    # load the saved prediction manifest
     directory = OUTPUTS / requested["run_id"] / requested["inference"]["prediction_id"]
+    manifest = read_json(directory / "predictions.json")
+    config, rows = manifest["config"], []
 
-    # load saved predictions
-    if predictions is None:
-        manifest = read_json(directory / "predictions.json")
-        config, rows = manifest["config"], []
+    # compare each saved prediction with its reference label
+    for case in manifest["cases"]:
+        prediction_path, label_path = directory / case["prediction"], ROOT / case["label"]
+        rows.extend(case_metrics(label_tensor(prediction_path, config), label_tensor(label_path, config), case, config))
 
-        # compare each saved prediction with its reference label
-        for case in manifest["cases"]:
-            prediction_path, label_path = directory / case["prediction"], ROOT / case["label"]
-            rows.extend(case_metrics(label_tensor(prediction_path, config), label_tensor(label_path, config), case, config))
-    else:
-        # reuse metrics already calculated during prediction
-        manifest, rows = predictions
-        config = manifest["config"]
-        
+    # save evaluation metrics and report the foreground averages
     summary = save_metrics(directory, "evaluation", rows, config)
     print(f"{manifest['protocol']['partition']} foreground macro: {summary['foreground_macro']}")
 

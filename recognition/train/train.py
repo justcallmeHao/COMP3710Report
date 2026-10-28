@@ -177,9 +177,9 @@ def run_training(config, cases, splits, directory, device, amp):
               f"validation={validation_losses[0]}, Dice={metrics['dice']}, "
               f"lr={learning_rate:.6g}, seconds={row['seconds']:.1f}", flush=True)
 
-        # stop after five consecutive validations above the dice target
+        # early stopping
         if target_count >= 5:
-            print("stopped after two consecutive validations with Dice > 0.70.", flush=True)
+            print("stopped after 5 consecutive validations with Dice > 0.70.", flush=True)
             break
 
     # return per-case metrics from the best validation
