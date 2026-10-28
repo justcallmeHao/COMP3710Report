@@ -1,7 +1,5 @@
 import importlib.metadata
-import json
 import platform
-import random
 from itertools import product
 
 import nibabel as nib
@@ -11,7 +9,6 @@ from nibabel.processing import resample_from_to
 from torch.nn import functional as F
 
 from .data import OUTPUTS, ROOT, load_volume, select_cases, write_json
-from .evaluate import case_metrics, label_tensor
 from .model import ResidualUNet3D
 
 
@@ -22,12 +19,6 @@ def select_device(use_amp):
     name = torch.cuda.get_device_name() if cuda else "CUDA unavailable"
     print(f"Device: {name}; AMP: {amp}", flush=True)
     return device, amp
-
-
-def seed_state(seed):
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
 
 
 def versions(device):
@@ -126,7 +117,8 @@ def save_prediction(path, labels, case, config):
     nib.save(output, path)
 
 
-def predict(requested, evaluate_results=False):
+def predict(requested):
+    # load the selected model checkpoint
     settings = requested["inference"]
     run = OUTPUTS / requested["run_id"]
     checkpoint_path = run / f"{settings['checkpoint']}.pt"
@@ -143,11 +135,6 @@ def predict(requested, evaluate_results=False):
     patients = manifest[partition]
     selected = select_cases(cases, patients)
 
-    # optionally restrict validation to the requested case ids
-    if partition == "validation" and settings["case_ids"]:
-        by_id = {case["case_id"]: case for case in selected}
-        selected = [by_id[case_id] for case_id in dict.fromkeys(settings["case_ids"])]
-
     # create the prediction directory and record checkpoint details
     directory = run / settings["prediction_id"]
     directory.mkdir(parents=True, exist_ok=False)
@@ -155,20 +142,14 @@ def predict(requested, evaluate_results=False):
                 "checkpoint_epoch": checkpoint["epoch"], "checkpoint_best_score": checkpoint["best_score"],
                 "prediction_id": settings["prediction_id"]}
 
-    # record a test protocol without overwriting an existing one
-    if partition == "test":
-        with (run / "test-protocol.json").open("x", encoding="utf-8") as stream:
-            stream.write(json.dumps(protocol, indent=2))
-
     # restore model weights and enable evaluation mode
     device, amp = select_device(config["amp"])
-    seed_state(config["seed"])
     model = ResidualUNet3D(config["model"], len(config["data"]["channel_names"]), len(config["labels"]["names"])).to(device)
     model.load_state_dict(checkpoint["model"])
     model.eval()
 
-    # collect prediction paths and optional evaluation metrics
-    predictions, rows = [], []
+    # collect saved prediction paths
+    predictions = []
     for case in selected:
         # preprocess each scan and predict class probabilities
         item = load_volume(case, config["preprocessing"], config["labels"]["id_to_source"], with_label=False)
@@ -179,15 +160,10 @@ def predict(requested, evaluate_results=False):
         labels = probabilities.argmax(0)
         save_prediction(directory / filename, labels, case, config)
 
-        # optionally score predictions against the reference labels
-        if evaluate_results:
-            rows.extend(case_metrics(labels.unsqueeze(0), label_tensor(ROOT / case["label"], config), case, config))
-
         # record the saved prediction path for this case
         predictions.append({**case, "prediction": filename})
 
+    # save metadata for evaluation and plotting
     manifest = {"protocol": protocol, "config": config, "versions": versions(device), "cases": predictions}
     write_json(directory / "predictions.json", manifest)
     print(f"Saved {len(predictions)} original-geometry predictions to {directory}")
-
-    return manifest, rows
