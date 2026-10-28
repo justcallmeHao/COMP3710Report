@@ -34,33 +34,6 @@ def discover(config):
                       "spacing": nib.affines.voxel_sizes(affine).tolist()})
     return cases
 
-def split_patients(patients, fraction, seed):
-    count = int(np.ceil(len(patients) * fraction))  # round up the held-out patient count
-    indices = np.random.RandomState(seed).permutation(len(patients))  # repeat the shuffle with the same seed
-    return patients[np.sort(indices[count:])], patients[np.sort(indices[:count])]
-
-def split_manifest(config, cases):
-    settings = config["data"]
-    path = ROOT / settings["splits_file"]
-    patients = sorted({case["patient_id"] for case in cases})  # keep each patient's scans together
-    validation_fraction = settings.get("validation_fraction", 0.2)  # fraction of development patients
-    definition = {"seed": config["seed"], "validation_fraction": validation_fraction,
-                  "test_fraction": settings["test_fraction"],
-                  "official_test_patients": settings["official_test_patients"], "patients": patients}
-    groups = np.asarray(patients)
-    official = settings["official_test_patients"]
-    if official:
-        development = np.array([p for p in patients if p not in official])  # reserve official test patients
-        test = sorted(official)
-    else:
-        development, test = split_patients(groups, settings["test_fraction"], config["seed"])
-        test = test.tolist()
-    train, validation = split_patients(development, validation_fraction, config["seed"])
-    manifest = {"definition": definition, "test": test,
-                "train": train.tolist(), "validation": validation.tolist()}
-    write_json(path, manifest)
-    return manifest
-
 def select_cases(cases, patients):
     return [case for case in cases if case["patient_id"] in patients]
 
