@@ -151,6 +151,11 @@ def predict(requested):
     # collect saved prediction paths
     predictions = []
     for case in selected:
+        # reset GPU usage checker to measure for this case
+        if device.type == "cuda":
+            torch.cuda.synchronize(device)
+            torch.cuda.reset_peak_memory_stats(device)
+
         # preprocess each scan and predict class probabilities
         item = load_volume(case, config["preprocessing"], config["labels"]["id_to_source"], with_label=False)
         _, probabilities = infer_volume(model, item, config, device, amp)
@@ -158,10 +163,17 @@ def predict(requested):
         # save the most likely class at each voxel
         filename = f"{case['case_id']}-prediction.nii.gz"
         labels = probabilities.argmax(0)
+        if device.type == "cuda":
+            torch.cuda.synchronize(device)
         save_prediction(directory / filename, labels, case, config)
 
+        # GPU usage
+        peak_gpu = (torch.cuda.max_memory_allocated(device) / 1024**2
+                            if device.type == "cuda" else None)
+
         # record the saved prediction path for this case
-        predictions.append({**case, "prediction": filename})
+        predictions.append({**case, "prediction": filename,
+                            "peak_gpu_allocated_mib": peak_gpu})
 
     # save metadata for evaluation and plotting
     manifest = {"protocol": protocol, "config": config, "versions": versions(device), "cases": predictions}
