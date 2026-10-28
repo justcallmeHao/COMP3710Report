@@ -20,10 +20,7 @@
       "LFOV MRI (sequence unverified)"
     ],
     "labels_file": "configs/labels.json",
-    "splits_file": "configs/splits.json",
-    "official_test_patients": [],
-    "test_fraction": 0.2,
-    "validation_fraction": 0.2
+    "splits_file": "configs/splits.json"
   },
   "preprocessing": {
     "target_spacing_mm": null,

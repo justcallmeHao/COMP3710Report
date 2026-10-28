@@ -9,7 +9,7 @@ from torch.nn import functional as F
 from torch.utils.data import DataLoader, WeightedRandomSampler
 from torchmetrics.functional.segmentation import dice_score
 
-from .data import OUTPUTS, ROOT, PatchDataset, discover, load_volume, read_json, resolve_spacing, select_cases, split_manifest, write_json
+from .data import OUTPUTS, ROOT, PatchDataset, discover, load_volume, read_json, resolve_spacing, select_cases, write_json
 from .evaluate import METRICS, case_metrics, label_tensor, save_metrics, write_csv
 from .model import ResidualUNet3D
 from .predict import infer_volume, seed_state, select_device, versions
@@ -177,14 +177,12 @@ def train(config):
         config = read_json(directory / "config.json")
         config["resume"] = True
         cases = read_json(directory / "cases.json")
-        splits = read_json(directory / "splits.json")
-    else:
+    splits = read_json(ROOT / config["data"]["splits_file"])
+    if not config["resume"]:
         cases = discover(config)
-        splits = split_manifest(config, cases)
         directory.mkdir(parents=True, exist_ok=False)
         write_json(directory / "config.json", config)
         write_json(directory / "cases.json", cases)
-        write_json(directory / "splits.json", splits)
     device, amp = select_device(config["amp"])
     print(f"Run {config['run_id']}: "
           f"epochs={config['training']['epochs']}, steps={config['training']['steps_per_epoch']}, "
