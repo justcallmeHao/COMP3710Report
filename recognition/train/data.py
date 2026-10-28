@@ -56,8 +56,8 @@ def split_manifest(config, cases):
         development, test = split_patients(groups, settings["test_fraction"], config["seed"])
         test = test.tolist()
     train, validation = split_patients(development, validation_fraction, config["seed"])
-    manifest = {"definition": definition, "test": test, "folds": [
-        {"train": train.tolist(), "validation": validation.tolist()}]}
+    manifest = {"definition": definition, "test": test,
+                "train": train.tolist(), "validation": validation.tolist()}
     write_json(path, manifest)
     return manifest
 
@@ -105,9 +105,9 @@ def load_volume(case, preprocessing, id_to_source, with_label=True):
     return item
 
 class PatchDataset(Dataset):
-    def __init__(self, cases, sampling, augmentation, preprocessing, id_to_source):
+    def __init__(self, cases, preprocessing, id_to_source):
         self.cases = cases
-        self.preprocessing = preprocessing  # keep the constructor compatible with training callers
+        self.preprocessing = preprocessing
         self.id_to_source = id_to_source
 
     def __len__(self):

@@ -23,10 +23,7 @@
     "splits_file": "configs/splits.json",
     "official_test_patients": [],
     "test_fraction": 0.2,
-    "n_folds": 5,
-    "folds_to_run": [
-      0, 1, 2, 3, 4
-    ]
+    "validation_fraction": 0.2
   },
   "preprocessing": {
     "target_spacing_mm": null,
@@ -55,33 +52,6 @@
     "dropout": 0.3,
     "bias": true
   },
-  "sampling": {
-    "patch_size": [
-      96,
-      96,
-      96
-    ],
-    "batch_size": 2,
-    "foreground_fraction": 0.33,
-    "memory_cache_mb": 1024
-  },
-  "augmentation": {
-    "spatial_probability": 0.2,
-    "rotation_degrees": 15.0,
-    "scale_range": [
-      0.9,
-      1.1
-    ],
-    "gamma_probability": 0.15,
-    "gamma_range": [
-      0.7,
-      1.5
-    ],
-    "noise_probability": 0.15,
-    "noise_std": 0.1,
-    "mirror_axes": [],
-    "mirror_probability": 0.0
-  },
   "loss": {
     "include_background": false,
     "probability_floor": 1e-07,
@@ -93,27 +63,29 @@
     "steps_per_epoch": 100,
     "validation_interval": 1,
     "learning_rate": 0.0005,
-    "weight_decay": 0.00001,
-    "lr_decay": 0.985
+    "weight_decay": 1e-05,
+    "lr_decay": 0.985,
+    "batch_size": 1
   },
   "inference": {
     "overlap": 0.5,
     "batch_size": 1,
     "sigma_scale": 0.125,
     "checkpoint": "best",
-    "folds": [0, 1, 2, 3, 4],
     "partition": "validation",
     "case_ids": [],
     "prediction_id": "validation_v1",
-    "weight_floor": 0.0001
+    "weight_floor": 0.0001,
+    "patch_size": [
+      96,
+      96,
+      96
+    ]
   },
   "evaluation": {
     "dice_target": 0.7
   },
   "graphs": {
-    "folds": [
-      0, 1, 2, 3, 4
-    ],
     "figure_id": "figures_v1",
     "overlay_cases": [],
     "max_overlay_cases": 3,
