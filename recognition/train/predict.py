@@ -8,7 +8,7 @@ import torch
 from nibabel.processing import resample_from_to
 from torch.nn import functional as F
 
-from .data import OUTPUTS, ROOT, load_volume, select_cases, write_json
+from .data import OUTPUTS, ROOT, discover, load_volume, select_cases, write_json
 from .model import ResidualUNet3D
 
 
@@ -130,7 +130,7 @@ def predict(requested):
     config["amp"] = requested["amp"]
 
     # select scans from the requested patient partition
-    manifest, cases = checkpoint["splits"], checkpoint["cases"]
+    manifest, cases = checkpoint["splits"], discover(config)
     partition = settings["partition"]
     patients = manifest[partition]
     selected = select_cases(cases, patients)
@@ -156,8 +156,8 @@ def predict(requested):
             torch.cuda.synchronize(device)
             torch.cuda.reset_peak_memory_stats(device)
 
-        # preprocess each scan and predict class probabilities
-        item = load_volume(case, config["preprocessing"], config["labels"]["id_to_source"], with_label=False)
+        # load each cached scan and predict class probabilities
+        item = load_volume(case, with_label=False)
         _, probabilities = infer_volume(model, item, config, device, amp)
 
         # save the most likely class at each voxel

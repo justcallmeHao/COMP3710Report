@@ -67,8 +67,8 @@ def validate(model, cases, config, device, amp):
     model.eval()
     losses, rows = [], []
     for case in cases:
-        # preprocess the scan and run full-volume inference
-        item = load_volume(case, config["preprocessing"], config["labels"]["id_to_source"])
+        # load the cached scan and run inference
+        item = load_volume(case)
         logits, probabilities = infer_volume(model, item, config, device, amp)
 
         # calculate loss on the preprocessed label grid
@@ -88,7 +88,7 @@ def run_training(config, cases, splits, directory, device, amp):
     training_cases = select_cases(cases, splits["train"])
     validation_cases = select_cases(cases, splits["validation"])
     settings = config["training"]
-    resolved = resolve_spacing(config, training_cases)
+    resolved = resolve_spacing(config)
     batch_size = resolved["training"]["batch_size"]
 
     # give each patient equal total sampling weight across their scans
@@ -97,9 +97,8 @@ def run_training(config, cases, splits, directory, device, amp):
     sampler = WeightedRandomSampler(weights, config["training"]["steps_per_epoch"] * batch_size,
                                     replacement=True)
 
-    # load full-volume training batches with the weighted sampler
-    dataset = PatchDataset(training_cases, resolved["preprocessing"],
-                           resolved["labels"]["id_to_source"])
+    # load training batches with the weighted sampler
+    dataset = PatchDataset(training_cases)
     loader = DataLoader(dataset, batch_size=batch_size, sampler=sampler,
                         pin_memory=device.type == "cuda")
 
