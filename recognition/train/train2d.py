@@ -60,11 +60,10 @@ def train_epoch(model, loader, loss_settings, optimizer, scaler, device, amp):
 @torch.inference_mode()
 def validate(model, cases, config, device, amp):
     model.eval()
-    id_to_source = config["labels"]["id_to_source"]
     rows = []
     totals = np.zeros(3)
     count = 0
-    loader = DataLoader(SliceDataset(cases, id_to_source),
+    loader = DataLoader(SliceDataset(cases),
                         batch_size=config["training"]["batch_size"],
                         pin_memory=device.type == "cuda")
     for batch in loader:
@@ -84,7 +83,7 @@ def validate(model, cases, config, device, amp):
 def run_training(config, training_cases, validation_cases, directory, device, amp):
     settings = config["training"]
     id_to_source = config["labels"]["id_to_source"]
-    training = DataLoader(SliceDataset(training_cases, id_to_source), batch_size=settings["batch_size"],
+    training = DataLoader(SliceDataset(training_cases), batch_size=settings["batch_size"],
                           shuffle=True, pin_memory=device.type == "cuda")
 
     model = ResidualUNet2D(config["model"], in_channels=1, classes=len(id_to_source)).to(device)

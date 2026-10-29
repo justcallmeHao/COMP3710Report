@@ -11,7 +11,7 @@ from .model2d import ResidualUNet2D
 
 @torch.inference_mode()
 def infer_slice(model, item, device, amp):
-    image = torch.from_numpy(np.ascontiguousarray(item["image"]))[None, None].to(device)
+    image = torch.from_numpy(np.array(item["image"], order="C", copy=True))[None, None].to(device)
     with torch.autocast(device_type=device.type, dtype=torch.float16, enabled=amp):
         logits = model(image)
     return logits.argmax(1)[0].cpu().numpy().astype(np.int16)
@@ -68,7 +68,7 @@ def predict(config):
         labels = np.empty(case["geometry"]["original_shape"], dtype=np.int16)
         # restore each slice at its original axis and index using source label IDs
         for item in scan:
-            prediction = infer_slice(model, load_slice(item, id_to_source, with_label=False), device, amp)
+            prediction = infer_slice(model, load_slice(item, with_label=False), device, amp)
             region = [slice(None)] * 3
             region[item["slice_axis"]] = item["slice_index"]
             labels[tuple(region)] = inverse[prediction]
