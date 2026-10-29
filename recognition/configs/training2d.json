@@ -4,6 +4,7 @@
     "train": true,
     "predict": true,
     "evaluate": true,
+    "test": true,
     "plot": true
   },
   "seed": 42,
@@ -27,7 +28,7 @@
     "lambda_ce": 1.0
   },
   "training": {
-    "epochs": 2,
+    "epochs": 1,
     "learning_rate": 0.0005,
     "weight_decay": 1e-05,
     "lr_decay": 0.985,
@@ -35,10 +36,14 @@
   },
   "inference": {
     "partition": "validate",
-    "prediction_id": "validation_v1"
+    "prediction_id": "validation"
+  },
+  "testing": {
+    "prediction_id": "test",
+    "figure_id": "test_figures"
   },
   "graphs": {
-    "figure_id": "figures_v1",
+    "figure_id": "figures",
     "overlay_cases": [],
     "max_overlay_cases": 3,
     "slice_fraction": 0.5,

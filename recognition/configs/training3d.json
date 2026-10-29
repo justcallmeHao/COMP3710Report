@@ -4,6 +4,7 @@
     "train": true,
     "predict": true,
     "evaluate": true,
+    "test": true,
     "plot": true
   },
   "seed": 42,
@@ -55,7 +56,7 @@
     "lambda_ce": 1.0
   },
   "training": {
-    "epochs": 2,
+    "epochs": 1,
     "steps_per_epoch": 100,
     "validation_interval": 1,
     "learning_rate": 0.0005,
@@ -69,7 +70,7 @@
     "sigma_scale": 0.125,
     "checkpoint": "best",
     "partition": "validation",
-    "prediction_id": "validation_v1",
+    "prediction_id": "validation",
     "weight_floor": 0.0001,
     "patch_size": [
       96,
@@ -80,8 +81,12 @@
   "evaluation": {
     "dice_target": 0.7
   },
+  "testing": {
+    "prediction_id": "test",
+    "figure_id": "test_figures"
+  },
   "graphs": {
-    "figure_id": "figures_v1",
+    "figure_id": "figures",
     "overlay_cases": [],
     "max_overlay_cases": 3,
     "slice_fraction": 0.5,
