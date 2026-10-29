@@ -3,8 +3,10 @@
   "pipeline": {
     "train": true,
     "predict": true,
-    "evaluate": true
+    "evaluate": true,
+    "plot": true
   },
+  "seed": 42,
   "amp": true,
   "model": {
     "channels": [64, 128, 256, 512, 1024],
@@ -34,5 +36,18 @@
   "inference": {
     "partition": "validate",
     "prediction_id": "validation_v1"
+  },
+  "graphs": {
+    "figure_id": "figures_v1",
+    "overlay_cases": [],
+    "max_overlay_cases": 3,
+    "slice_fraction": 0.5,
+    "dpi": 140,
+    "alpha": 0.4,
+    "label_cmap": "tab10",
+    "image_cmap": "gray",
+    "figure_size": [14, 10],
+    "point_size": 12,
+    "jitter": 0.08
   }
 }

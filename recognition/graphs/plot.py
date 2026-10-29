@@ -32,7 +32,7 @@ def learning_curves(run, destination, settings):
         axis.legend()
     for metric in ("dice", "precision", "recall", "iou"):
         axes[1, 0].plot(epochs, column(rows, f"validation_{metric}"), label=metric)
-    axes[1, 0].set(xlabel="Epoch", ylabel="Full-volume foreground macro", ylim=(0, 1))
+    axes[1, 0].set(xlabel="Epoch", ylabel="Validation foreground macro", ylim=(0, 1))
     axes[1, 0].legend()
     axes[1, 1].plot(epochs, column(rows, "learning_rate"))
     axes[1, 1].set(xlabel="Epoch", ylabel="Learning rate")

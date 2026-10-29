@@ -1,5 +1,6 @@
 import json
 
+from graphs.plot import plot
 from train.data2d import ROOT
 from train.evaluate2d import evaluate
 from train.predict2d import predict
@@ -15,6 +16,8 @@ def main():
         predict(config)
     if stages["evaluate"]:
         evaluate(config)
+    if stages["plot"]:
+        plot(config)
 
 
 if __name__ == "__main__":
