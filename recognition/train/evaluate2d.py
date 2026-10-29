@@ -110,7 +110,6 @@ def save_metrics(directory, prefix, rows, config):
 
 def evaluate(config):
     run_id = config["run_id"]
-    run_id = run_id if run_id.endswith("_2d") else f"{run_id}_2d"
     directory = OUTPUTS / run_id / config["inference"]["prediction_id"]
     manifest = json.loads((directory / "predictions.json").read_text(encoding="utf-8"))
     config = manifest["config"]

@@ -5,15 +5,28 @@ import nibabel as nib
 import numpy as np
 import torch
 
-from .data2d import OUTPUTS, ROOT, discover, load_slice, write_json
-from .model2d import ResidualUNet2D
+from .data2d import OUTPUTS, ROOT, discover, load_slice, pad_image, tile_regions, write_json
+from .model2d import UNet2D
+
+
+@torch.inference_mode()
+def slice_logits(model, item, device, amp):
+    shape = item["image"].shape
+    input_size, output_size = model.input_patch_size, model.output_patch_size
+    padded = pad_image(item["image"], input_size, output_size)
+    logits = torch.empty((1, model.output.out_channels, *shape), device=device, dtype=torch.float32)
+    for top, left, height, width in tile_regions(shape, output_size):
+        patch = padded[top:top + input_size[0], left:left + input_size[1]]
+        image = torch.from_numpy(np.array(patch, dtype=np.float32, order="C", copy=True))[None, None].to(device)
+        with torch.autocast(device_type=device.type, dtype=torch.float16, enabled=amp):
+            output = model(image)
+        logits[:, :, top:top + height, left:left + width] = output[:, :, :height, :width]
+    return logits
 
 
 @torch.inference_mode()
 def infer_slice(model, item, device, amp):
-    image = torch.from_numpy(np.array(item["image"], order="C", copy=True))[None, None].to(device)
-    with torch.autocast(device_type=device.type, dtype=torch.float16, enabled=amp):
-        logits = model(image)
+    logits = slice_logits(model, item, device, amp)
     return logits.argmax(1)[0].cpu().numpy().astype(np.int16)
 
 
@@ -31,7 +44,6 @@ def save_prediction(path, labels, case):
 def predict(config):
     settings = config["inference"]
     run_id = config["run_id"]
-    run_id = run_id if run_id.endswith("_2d") else f"{run_id}_2d"
     run = OUTPUTS / run_id
     checkpoint_path = run / "best.pt"
     checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
@@ -49,7 +61,7 @@ def predict(config):
     name = torch.cuda.get_device_name() if device.type == "cuda" else "CPU"
     print(f"Device: {name}; AMP: {amp}", flush=True)
     id_to_source = config["labels"]["id_to_source"]
-    model = ResidualUNet2D(config["model"], in_channels=1, classes=len(id_to_source)).to(device)
+    model = UNet2D(config["model"], in_channels=1, classes=len(id_to_source)).to(device)
     model.load_state_dict(checkpoint["model"])
     model.eval()
 

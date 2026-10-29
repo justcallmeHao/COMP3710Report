@@ -8,9 +8,10 @@ import torch
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
 
-from .data2d import OUTPUTS, ROOT, SliceDataset, discover, read_json, write_json
+from .data2d import OUTPUTS, ROOT, SliceDataset, discover, load_slice, read_json, write_json
 from .evaluate2d import METRICS, case_metrics, save_metrics
-from .model2d import ResidualUNet2D
+from .model2d import UNet2D
+from .predict2d import slice_logits
 
 
 def versions(device):
@@ -23,8 +24,9 @@ def versions(device):
 
 def segmentation_loss(logits, target, settings):
     target = target[:, 0].long()
-    probabilities = logits.float().softmax(1)
-    truth = F.one_hot(target, num_classes=logits.shape[1]).movedim(-1, 1).float()
+    valid = (target != -100).unsqueeze(1)
+    probabilities = logits.float().softmax(1) * valid
+    truth = F.one_hot(target.clamp_min(0), num_classes=logits.shape[1]).movedim(-1, 1).float() * valid
 
     intersection = (probabilities * truth).sum(dim=(2, 3))
     denominator = probabilities.sum(dim=(2, 3)) + truth.sum(dim=(2, 3))
@@ -32,7 +34,7 @@ def segmentation_loss(logits, target, settings):
     dice = (2 * intersection + epsilon) / (denominator + epsilon)
     if not settings["include_background"]:
         dice = dice[:, 1:]
-    ce = F.cross_entropy(logits.float(), target)
+    ce = F.cross_entropy(logits.float(), target, ignore_index=-100)
     dice = 1 - dice.mean()
     total = settings["lambda_dice"] * dice + settings["lambda_ce"] * ce
     return total, dice, ce
@@ -63,30 +65,25 @@ def validate(model, cases, config, device, amp):
     rows = []
     totals = np.zeros(3)
     count = 0
-    loader = DataLoader(SliceDataset(cases),
-                        batch_size=config["training"]["batch_size"],
-                        pin_memory=device.type == "cuda")
-    for batch in loader:
-        image = batch["image"].to(device, non_blocking=device.type == "cuda")
-        truth = batch["label"].to(device, non_blocking=device.type == "cuda")
-        with torch.autocast(device_type=device.type, dtype=torch.float16, enabled=amp):
-            logits = model(image)
+    for case in cases:
+        item = load_slice(case)
+        truth = torch.from_numpy(np.array(item["label"], dtype=np.int64, copy=True))[None, None].to(device)
+        logits = slice_logits(model, item, device, amp)
         values = segmentation_loss(logits, truth, config["loss"])
-        totals += np.asarray([value.item() for value in values]) * len(image)
-        labels = logits.argmax(1).cpu()
-        for index, case in enumerate(cases[count:count + len(labels)]):
-            rows.extend(case_metrics(labels[index], batch["label"][index, 0], case, config))
-        count += len(image)
+        totals += np.asarray([value.item() for value in values])
+        labels = logits.argmax(1)[0].cpu()
+        rows.extend(case_metrics(labels, truth[0, 0].cpu(), case, config))
+        count += 1
     return (totals / count).tolist(), rows
 
 
 def run_training(config, training_cases, validation_cases, directory, device, amp):
     settings = config["training"]
     id_to_source = config["labels"]["id_to_source"]
-    training = DataLoader(SliceDataset(training_cases), batch_size=settings["batch_size"],
+    training = DataLoader(SliceDataset(training_cases, config["model"]), batch_size=settings["batch_size"],
                           shuffle=True, pin_memory=device.type == "cuda")
 
-    model = ResidualUNet2D(config["model"], in_channels=1, classes=len(id_to_source)).to(device)
+    model = UNet2D(config["model"], in_channels=1, classes=len(id_to_source)).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=settings["learning_rate"],
                                  weight_decay=settings["weight_decay"])
     scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=settings["lr_decay"])
@@ -107,6 +104,7 @@ def run_training(config, training_cases, validation_cases, directory, device, am
           f"batch={settings['batch_size']}, lr={settings['learning_rate']}", flush=True)
     epoch_log = directory / "epochs.csv"
     best_score = -1.0
+    target_count = 0
     for epoch in range(1, settings["epochs"] + 1):
         began = time.perf_counter()
         learning_rate = optimizer.param_groups[0]["lr"]
@@ -114,6 +112,7 @@ def run_training(config, training_cases, validation_cases, directory, device, am
         validation_losses, validation_rows = validate(model, validation_cases, config, device, amp)
         summary = save_metrics(directory, "validation", validation_rows, config)
         metrics = summary["foreground_macro"]
+        target_count = target_count + 1 if metrics["dice"] is not None and metrics["dice"] > 0.70 else 0
         improved = metrics["dice"] is not None and metrics["dice"] > best_score
         if improved:
             best_score = metrics["dice"]
@@ -139,12 +138,14 @@ def run_training(config, training_cases, validation_cases, directory, device, am
         print(f"Epoch {epoch}/{settings['epochs']}: train={train_losses[0]:.4f}, "
               f"validation={validation_losses[0]:.4f}, Dice={metrics['dice']}, "
               f"lr={learning_rate:.6g}, seconds={row['seconds']:.1f}", flush=True)
+        if target_count >= 5:
+            print("stopped after 5 consecutive validations with Dice > 0.70.", flush=True)
+            break
     return directory
 
 
 def train(config):
     run_id = config["run_id"]
-    run_id = run_id if run_id.endswith("_2d") else f"{run_id}_2d"
     config = {**config, "run_id": run_id, "labels": read_json(ROOT / "configs/labels.json")}
     directory = OUTPUTS / run_id
     directory.mkdir(parents=True, exist_ok=False)

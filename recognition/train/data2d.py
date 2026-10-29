@@ -35,16 +35,36 @@ def load_slice(case, with_label=True):
             for name in names}
 
 
+def tile_regions(shape, output_size):
+    for top in range(0, shape[0], output_size[0]):
+        for left in range(0, shape[1], output_size[1]):
+            yield top, left, min(output_size[0], shape[0] - top), min(output_size[1], shape[1] - left)
+
+
+def pad_image(image, input_size, output_size):
+    padding = [((before - after) // 2, (before - after) // 2 + (-size) % after)
+               for size, before, after in zip(image.shape, input_size, output_size)]
+    return np.pad(image, padding, mode="reflect")
+
+
 class SliceDataset(Dataset):
-    def __init__(self, cases):
+    def __init__(self, cases, settings):
         self.cases = cases
+        self.input_size = settings["input_patch_size"]
+        self.output_size = settings["output_patch_size"]
+        self.tiles = [(index, region) for index, case in enumerate(cases)
+                      for region in tile_regions(case["geometry"]["original_shape"][:2], self.output_size)]
 
     def __len__(self):
-        return len(self.cases)
+        return len(self.tiles)
 
     def __getitem__(self, index):
-        item = load_slice(self.cases[index])
-        # copy read-only cached slices into writable training tensors
-        image = np.array(item["image"][None], dtype=np.float32, order="C", copy=True)
-        label = np.array(item["label"][None], dtype=np.int64, order="C", copy=True)
+        case_index, (top, left, height, width) = self.tiles[index]
+        item = load_slice(self.cases[case_index])
+        padded = pad_image(item["image"], self.input_size, self.output_size)
+        image = np.array(padded[None, top:top + self.input_size[0], left:left + self.input_size[1]],
+                         dtype=np.float32, order="C", copy=True)
+        
+        label = np.full((1, *self.output_size), -100, dtype=np.int64)
+        label[0, :height, :width] = item["label"][top:top + height, left:left + width]
         return {"image": torch.from_numpy(image), "label": torch.from_numpy(label)}
