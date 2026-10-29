@@ -1,3 +1,6 @@
+import time
+from pathlib import Path
+
 import nibabel as nib
 import numpy as np
 import torch
@@ -43,6 +46,8 @@ def predict(config):
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     amp = bool(config["amp"] and device.type == "cuda" and torch.cuda.get_device_capability()[0] >= 7)
+    name = torch.cuda.get_device_name() if device.type == "cuda" else "CPU"
+    print(f"Device: {name}; AMP: {amp}", flush=True)
     id_to_source = config["labels"]["id_to_source"]
     model = ResidualUNet2D(config["model"], in_channels=1, classes=len(id_to_source)).to(device)
     model.load_state_dict(checkpoint["model"])
@@ -56,6 +61,10 @@ def predict(config):
     inverse = np.asarray(id_to_source, dtype=np.int16)
     for scan in scans.values():
         case = scan[0]
+        if device.type == "cuda":
+            torch.cuda.synchronize(device)
+            torch.cuda.reset_peak_memory_stats(device)
+        began = time.perf_counter()
         labels = np.empty(case["geometry"]["original_shape"], dtype=np.int16)
         # restore each slice at its original axis and index using source label IDs
         for item in scan:
@@ -63,11 +72,20 @@ def predict(config):
             region = [slice(None)] * 3
             region[item["slice_axis"]] = item["slice_index"]
             labels[tuple(region)] = inverse[prediction]
-        filename = f"{case['case_id']}-prediction.nii.gz"
+        if device.type == "cuda":
+            torch.cuda.synchronize(device)
+        seconds = time.perf_counter() - began
+        peak_gpu = torch.cuda.max_memory_allocated(device) / 1024**2 if device.type == "cuda" else None
+        stem = Path(case["image"]).name.removesuffix(".gz").removesuffix(".nii")
+        filename = f"{stem}-prediction.nii.gz"
         save_prediction(directory / filename, labels, case)
         predictions.append({"case_id": case["case_id"], "patient_id": case["patient_id"],
                             "image": case["image"], "label": case["label"],
-                            "geometry": case["geometry"], "prediction": filename})
+                            "geometry": case["geometry"], "prediction": filename,
+                            "slices": [{"slice_id": f"{item['case_id']}-slice-{item['slice_index']}",
+                                        "slice_axis": item["slice_axis"], "slice_index": item["slice_index"]}
+                                       for item in scan],
+                            "inference_seconds": seconds, "peak_gpu_allocated_mib": peak_gpu})
 
     # record prediction paths and checkpoint
     protocol = {"partition": partition, "checkpoint": str(checkpoint_path),
@@ -75,4 +93,5 @@ def predict(config):
                 "prediction_id": settings["prediction_id"]}
     write_json(directory / "predictions.json",
                {"protocol": protocol, "config": config, "cases": predictions})
+    print(f"Saved {len(predictions)} original-geometry predictions to {directory}", flush=True)
     return directory

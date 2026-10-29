@@ -39,7 +39,8 @@ def case_metrics(prediction, target, case, config):
     rows = []
     for index in range(5):
         row = {"case_id": case["case_id"], "patient_id": case["patient_id"],
-               "class_id": index + 1, "class_name": config["labels"]["names"][index + 1]}
+               "slice_id": f"{case['case_id']}-slice-{case['slice_index']}",
+               "class_id": index + 1, "class_name": str(index + 1)}
         for metric in METRICS:
             value = scores[metric][index].item()
             available = bool(np.isfinite(value))
@@ -60,17 +61,17 @@ def summarize(rows, config):
     patients = sorted({row["patient_id"] for row in rows})
     patient_rows, classes = [], []
     for class_id in range(1, 6):
-        name = config["labels"]["names"][class_id]
+        name = str(class_id)
         class_patients = []
         for patient in patients:
-            # average full scans within each patient before averaging patients
-            scans = [row for row in rows if row["patient_id"] == patient and row["class_id"] == class_id]
-            item = {"patient_id": patient, "class_id": class_id, "class_name": name, "scan_count": len(scans)}
+            # average slices within each patient before averaging patients
+            slices = [row for row in rows if row["patient_id"] == patient and row["class_id"] == class_id]
+            item = {"patient_id": patient, "class_id": class_id, "class_name": name, "slice_count": len(slices)}
             for metric in METRICS:
-                stats = statistics([row[metric] for row in scans])
+                stats = statistics([row[metric] for row in slices])
                 item[metric] = stats["mean"]
-                item[metric + "_valid_scans"] = stats["valid"]
-                item[metric + "_excluded_scans"] = stats["excluded"]
+                item[metric + "_valid_slices"] = stats["valid"]
+                item[metric + "_excluded_slices"] = stats["excluded"]
             class_patients.append(item)
         patient_rows.extend(class_patients)
         classes.append({"class_id": class_id, "class_name": name,
@@ -81,8 +82,9 @@ def summarize(rows, config):
                       **{metric: statistics([row[metric] for row in patient_rows
                                              if row["patient_id"] == patient])["mean"] for metric in METRICS}}
                      for patient in patients]
-    summary = {"aggregation": "full scan -> mean visits per patient/class -> mean patients per class -> equal class mean",
+    summary = {"aggregation": "slice -> mean slices per patient/class -> mean patients per class -> equal class mean",
                "patient_count": len(patients),
+               "slice_count": len({row["slice_id"] for row in rows}),
                "scan_count": len({row["case_id"] for row in rows}),
                "classes": classes, "foreground_macro": macro, "patient_macro": distributions,
                "patient_macro_distribution": {metric: statistics([row[metric] for row in distributions])
@@ -116,5 +118,10 @@ def evaluate(config):
     for case in manifest["cases"]:
         prediction = label_tensor(directory / case["prediction"], config)
         target = label_tensor(ROOT / case["label"], config)
-        rows.extend(case_metrics(prediction, target, case, config))
-    return save_metrics(directory, "evaluation", rows, config)
+        for item in case["slices"]:
+            axis, index = item["slice_axis"], item["slice_index"]
+            rows.extend(case_metrics(prediction.select(axis, index), target.select(axis, index),
+                                     {**case, **item}, config))
+    summary = save_metrics(directory, "evaluation", rows, config)
+    print(f"{manifest['protocol']['partition']} foreground macro: {summary['foreground_macro']}", flush=True)
+    return summary

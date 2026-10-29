@@ -9,9 +9,8 @@ from torch.nn import functional as F
 from torch.utils.data import DataLoader
 
 from .data2d import OUTPUTS, ROOT, SliceDataset, discover, read_json, write_json
+from .evaluate2d import METRICS, case_metrics, save_metrics
 from .model2d import ResidualUNet2D
-
-METRICS = ("dice", "precision", "recall", "iou")
 
 
 def versions(device):
@@ -62,53 +61,24 @@ def train_epoch(model, loader, loss_settings, optimizer, scaler, device, amp):
 def validate(model, cases, config, device, amp):
     model.eval()
     id_to_source = config["labels"]["id_to_source"]
-    scans, patients = {}, {}
+    rows = []
     totals = np.zeros(3)
     count = 0
-    for case in cases:
-        scans.setdefault(case["case_id"], []).append(case)
-
-    for scan in scans.values():
-        loader = DataLoader(SliceDataset(scan, id_to_source),
-                            batch_size=config["training"]["batch_size"],
-                            pin_memory=device.type == "cuda")
-        prediction = torch.empty(scan[0]["geometry"]["original_shape"], dtype=torch.int64)
-        target = torch.empty_like(prediction)
-        start = 0
-        # restore all slices to their native volume positions before scoring
-        for batch in loader:
-            image = batch["image"].to(device, non_blocking=device.type == "cuda")
-            truth = batch["label"].to(device, non_blocking=device.type == "cuda")
-            with torch.autocast(device_type=device.type, dtype=torch.float16, enabled=amp):
-                logits = model(image)
-            values = segmentation_loss(logits, truth, config["loss"])
-            totals += np.asarray([value.item() for value in values]) * len(image)
-            count += len(image)
-            labels = logits.argmax(1).cpu()
-            for index, case in enumerate(scan[start:start + len(labels)]):
-                prediction.select(case["slice_axis"], case["slice_index"]).copy_(labels[index])
-                target.select(case["slice_axis"], case["slice_index"]).copy_(batch["label"][index, 0])
-            start += len(labels)
-
-        scores = []
-        for label in range(1, len(id_to_source)):
-            predicted, truth = prediction == label, target == label
-            intersection = (predicted & truth).sum().double()
-            predicted_count, target_count = predicted.sum(), truth.sum()
-            denominator = predicted_count + target_count
-            
-            scores.append(torch.stack((
-                torch.where(denominator > 0, 2 * intersection / denominator, float("nan")),
-                torch.where(predicted_count > 0, intersection / predicted_count, float("nan")),
-                torch.where(target_count > 0, intersection / target_count, float("nan")),
-                torch.where(denominator > 0, intersection / (denominator - intersection), float("nan")),
-            )))
-        patients.setdefault(scan[0]["patient_id"], []).append(torch.stack(scores))
-
-    # match 3D aggregation
-    patient_scores = torch.stack([torch.stack(scores).nanmean(0) for scores in patients.values()])
-    scores = patient_scores.nanmean(0).nanmean(0).tolist()
-    return (totals / count).tolist(), dict(zip(METRICS, scores))
+    loader = DataLoader(SliceDataset(cases, id_to_source),
+                        batch_size=config["training"]["batch_size"],
+                        pin_memory=device.type == "cuda")
+    for batch in loader:
+        image = batch["image"].to(device, non_blocking=device.type == "cuda")
+        truth = batch["label"].to(device, non_blocking=device.type == "cuda")
+        with torch.autocast(device_type=device.type, dtype=torch.float16, enabled=amp):
+            logits = model(image)
+        values = segmentation_loss(logits, truth, config["loss"])
+        totals += np.asarray([value.item() for value in values]) * len(image)
+        labels = logits.argmax(1).cpu()
+        for index, case in enumerate(cases[count:count + len(labels)]):
+            rows.extend(case_metrics(labels[index], batch["label"][index, 0], case, config))
+        count += len(image)
+    return (totals / count).tolist(), rows
 
 
 def run_training(config, training_cases, validation_cases, directory, device, amp):
@@ -142,13 +112,16 @@ def run_training(config, training_cases, validation_cases, directory, device, am
         began = time.perf_counter()
         learning_rate = optimizer.param_groups[0]["lr"]
         train_losses = train_epoch(model, training, config["loss"], optimizer, scaler, device, amp)
-        validation_losses, metrics = validate(model, validation_cases, config, device, amp)
-        improved = metrics["dice"] > best_score
+        validation_losses, validation_rows = validate(model, validation_cases, config, device, amp)
+        summary = save_metrics(directory, "validation", validation_rows, config)
+        metrics = summary["foreground_macro"]
+        improved = metrics["dice"] is not None and metrics["dice"] > best_score
         if improved:
             best_score = metrics["dice"]
+            save_metrics(directory, "best", validation_rows, config)
         scheduler.step()
 
-        # Keep checkpoint fields compatible with prediction.
+        # keep checkpoint fields compatible with prediction
         state = {"model": model.state_dict(), "epoch": epoch, "best_score": best_score,
                  "config": config}
         if improved:
@@ -165,7 +138,7 @@ def run_training(config, training_cases, validation_cases, directory, device, am
                 writer.writeheader()
             writer.writerow(row)
         print(f"Epoch {epoch}/{settings['epochs']}: train={train_losses[0]:.4f}, "
-              f"validation={validation_losses[0]:.4f}, Dice={metrics['dice']:.4f}, "
+              f"validation={validation_losses[0]:.4f}, Dice={metrics['dice']}, "
               f"lr={learning_rate:.6g}, seconds={row['seconds']:.1f}", flush=True)
     return directory
 
