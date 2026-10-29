@@ -8,8 +8,8 @@ import torch
 from nibabel.processing import resample_from_to
 from torch.nn import functional as F
 
-from .data import OUTPUTS, ROOT, discover, load_volume, select_cases, write_json
-from .model import ResidualUNet3D
+from .data3d import OUTPUTS, ROOT, discover, load_volume, select_cases, write_json
+from .model3d import ResidualUNet3D
 
 
 def select_device(use_amp):

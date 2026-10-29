@@ -1,12 +1,12 @@
 from graphs.plot import plot
-from train.data import ROOT, read_json
-from train.evaluate import evaluate
-from train.predict import predict
-from train.train import train
+from train.data3d import ROOT, read_json
+from train.evaluate3d import evaluate
+from train.predict3d import predict
+from train.train3d import train
 
 
 def main():
-    config = read_json(ROOT / "configs/training.json")
+    config = read_json(ROOT / "configs/training3d.json")
     config["labels"] = read_json(ROOT / config["data"]["labels_file"])
     stages = config["pipeline"]
     if stages["train"]:

@@ -8,10 +8,10 @@ from torch.nn import functional as F
 from torch.utils.data import DataLoader, WeightedRandomSampler
 from torchmetrics.functional.segmentation import dice_score
 
-from .data import OUTPUTS, ROOT, PatchDataset, discover, load_volume, read_json, resolve_spacing, select_cases, write_json
-from .evaluate import METRICS, case_metrics, label_tensor, save_metrics
-from .model import ResidualUNet3D
-from .predict import infer_volume, select_device, versions
+from .data3d import OUTPUTS, ROOT, PatchDataset, discover, load_volume, read_json, resolve_spacing, select_cases, write_json
+from .evaluate3d import METRICS, case_metrics, label_tensor, save_metrics
+from .model3d import ResidualUNet3D
+from .predict3d import infer_volume, select_device, versions
 
 
 def segmentation_loss(logits, target, settings):

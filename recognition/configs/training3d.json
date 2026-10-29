@@ -1,5 +1,5 @@
 {
-  "run_id": "pytorch_resunet_paper_adapted",
+  "run_id": "improved_3d_unet",
   "pipeline": {
     "train": true,
     "predict": true,
