@@ -1,5 +1,3 @@
-from pathlib import Path
-
 import nibabel as nib
 import numpy as np
 import torch
@@ -18,8 +16,6 @@ def infer_slice(model, item, device, amp):
 
 def save_prediction(path, labels, case):
     original = nib.load(ROOT / case["image"])
-    if len(original.shape) == 3:
-        labels = labels[:, :, None]
     header = original.header.copy()
     header.set_data_dtype(np.int16)
     output = nib.Nifti1Image(labels, original.affine, header)
@@ -40,26 +36,38 @@ def predict(config):
               "inference": settings, "amp": config["amp"]}
 
     partition = settings["partition"]
-    partition = "validate" if partition == "validation" else partition
+    partition = "validation" if partition == "validate" else partition
     cases = discover(partition)
     directory = run / settings["prediction_id"]
     directory.mkdir(parents=True, exist_ok=False)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     amp = bool(config["amp"] and device.type == "cuda" and torch.cuda.get_device_capability()[0] >= 7)
-    model = ResidualUNet2D(config["model"], in_channels=1, classes=6).to(device)
+    id_to_source = config["labels"]["id_to_source"]
+    model = ResidualUNet2D(config["model"], in_channels=1, classes=len(id_to_source)).to(device)
     model.load_state_dict(checkpoint["model"])
     model.eval()
 
-    predictions = []
+    scans = {}
     for case in cases:
-        slice_id = Path(case["image"]).name.removesuffix(".nii.gz")
-        patient_id = slice_id.removeprefix("case_").split("_week_", 1)[0]
-        labels = infer_slice(model, load_slice(case), device, amp)
-        filename = f"{slice_id}-prediction.nii.gz"
+        scans.setdefault(case["case_id"], []).append(case)
+
+    predictions = []
+    inverse = np.asarray(id_to_source, dtype=np.int16)
+    for scan in scans.values():
+        case = scan[0]
+        labels = np.empty(case["geometry"]["original_shape"], dtype=np.int16)
+        # restore each slice at its original axis and index using source label IDs
+        for item in scan:
+            prediction = infer_slice(model, load_slice(item, id_to_source), device, amp)
+            region = [slice(None)] * 3
+            region[item["slice_axis"]] = item["slice_index"]
+            labels[tuple(region)] = inverse[prediction]
+        filename = f"{case['case_id']}-prediction.nii.gz"
         save_prediction(directory / filename, labels, case)
-        predictions.append({**case, "case_id": slice_id, "slice_id": slice_id,
-                            "patient_id": patient_id, "prediction": filename})
+        predictions.append({"case_id": case["case_id"], "patient_id": case["patient_id"],
+                            "image": case["image"], "label": case["label"],
+                            "geometry": case["geometry"], "prediction": filename})
 
     # record prediction paths and checkpoint
     protocol = {"partition": partition, "checkpoint": str(checkpoint_path),

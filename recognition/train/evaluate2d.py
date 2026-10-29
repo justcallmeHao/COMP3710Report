@@ -5,15 +5,15 @@ import nibabel as nib
 import numpy as np
 import torch
 
-from .data2d import OUTPUTS, ROOT, write_json
+from .data2d import OUTPUTS, ROOT, map_labels, write_json
 
 METRICS = ("dice", "iou", "precision", "recall")
 
 
-def label_tensor(path):
+def label_tensor(path, config):
+    # keep the full volume and map source IDs to class indices
     values = np.asanyarray(nib.load(path).dataobj)
-    if values.ndim == 3:
-        values = values[:, :, 0]
+    values = map_labels(values, config["labels"]["id_to_source"])
     return torch.from_numpy(np.ascontiguousarray(values, dtype=np.int64))
 
 
@@ -34,12 +34,12 @@ def scores_from_counts(counts):
             for metric, numerator, denominator in zip(METRICS, numerators, denominators)}
 
 
-def case_metrics(prediction, target, case):
+def case_metrics(prediction, target, case, config):
     scores = scores_from_counts(foreground_counts(prediction, target))
     rows = []
     for index in range(5):
-        row = {"case_id": case["case_id"], "slice_id": case["slice_id"],
-               "patient_id": case["patient_id"], "class_id": index + 1}
+        row = {"case_id": case["case_id"], "patient_id": case["patient_id"],
+               "class_id": index + 1, "class_name": config["labels"]["names"][index + 1]}
         for metric in METRICS:
             value = scores[metric][index].item()
             available = bool(np.isfinite(value))
@@ -56,29 +56,37 @@ def statistics(values):
             "valid": len(valid), "excluded": len(values) - len(valid)}
 
 
-def summarize(rows):
+def summarize(rows, config):
     patients = sorted({row["patient_id"] for row in rows})
     patient_rows, classes = [], []
     for class_id in range(1, 6):
+        name = config["labels"]["names"][class_id]
         class_patients = []
         for patient in patients:
-            slices = [row for row in rows if row["patient_id"] == patient and row["class_id"] == class_id]
-            item = {"patient_id": patient, "class_id": class_id, "slice_count": len(slices)}
+            # average full scans within each patient before averaging patients
+            scans = [row for row in rows if row["patient_id"] == patient and row["class_id"] == class_id]
+            item = {"patient_id": patient, "class_id": class_id, "class_name": name, "scan_count": len(scans)}
             for metric in METRICS:
-                stats = statistics([row[metric] for row in slices])
+                stats = statistics([row[metric] for row in scans])
                 item[metric] = stats["mean"]
-                item[metric + "_valid_slices"] = stats["valid"]
-                item[metric + "_excluded_slices"] = stats["excluded"]
+                item[metric + "_valid_scans"] = stats["valid"]
+                item[metric + "_excluded_scans"] = stats["excluded"]
             class_patients.append(item)
         patient_rows.extend(class_patients)
-        classes.append({"class_id": class_id,
+        classes.append({"class_id": class_id, "class_name": name,
                         **{metric: statistics([row[metric] for row in class_patients]) for metric in METRICS}})
 
     macro = {metric: statistics([row[metric]["mean"] for row in classes])["mean"] for metric in METRICS}
-    summary = {"aggregation": "slice -> mean slices per patient/class -> mean patients per class -> equal class mean",
+    distributions = [{"patient_id": patient,
+                      **{metric: statistics([row[metric] for row in patient_rows
+                                             if row["patient_id"] == patient])["mean"] for metric in METRICS}}
+                     for patient in patients]
+    summary = {"aggregation": "full scan -> mean visits per patient/class -> mean patients per class -> equal class mean",
                "patient_count": len(patients),
-               "slice_count": len({row["slice_id"] for row in rows}),
-               "classes": classes, "foreground_macro": macro}
+               "scan_count": len({row["case_id"] for row in rows}),
+               "classes": classes, "foreground_macro": macro, "patient_macro": distributions,
+               "patient_macro_distribution": {metric: statistics([row[metric] for row in distributions])
+                                               for metric in METRICS}}
     return patient_rows, summary
 
 
@@ -89,8 +97,8 @@ def write_csv(path, rows):
         writer.writerows(rows)
 
 
-def save_metrics(directory, prefix, rows):
-    patient_rows, summary = summarize(rows)
+def save_metrics(directory, prefix, rows, config):
+    patient_rows, summary = summarize(rows, config)
     write_csv(directory / f"{prefix}-cases.csv", rows)
     write_json(directory / f"{prefix}-cases.json", rows)
     write_csv(directory / f"{prefix}-patients.csv", patient_rows)
@@ -103,9 +111,10 @@ def evaluate(config):
     run_id = run_id if run_id.endswith("_2d") else f"{run_id}_2d"
     directory = OUTPUTS / run_id / config["inference"]["prediction_id"]
     manifest = json.loads((directory / "predictions.json").read_text(encoding="utf-8"))
+    config = manifest["config"]
     rows = []
     for case in manifest["cases"]:
-        prediction = label_tensor(directory / case["prediction"])
-        target = label_tensor(ROOT / case["label"])
-        rows.extend(case_metrics(prediction, target, case))
-    return save_metrics(directory, "evaluation", rows)
+        prediction = label_tensor(directory / case["prediction"], config)
+        target = label_tensor(ROOT / case["label"], config)
+        rows.extend(case_metrics(prediction, target, case, config))
+    return save_metrics(directory, "evaluation", rows, config)
