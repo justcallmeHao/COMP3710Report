@@ -68,7 +68,7 @@ def predict(config):
         labels = np.empty(case["geometry"]["original_shape"], dtype=np.int16)
         # restore each slice at its original axis and index using source label IDs
         for item in scan:
-            prediction = infer_slice(model, load_slice(item, id_to_source), device, amp)
+            prediction = infer_slice(model, load_slice(item, id_to_source, with_label=False), device, amp)
             region = [slice(None)] * 3
             region[item["slice_axis"]] = item["slice_index"]
             labels[tuple(region)] = inverse[prediction]

@@ -1,3 +1,4 @@
+import hashlib
 import json
 from pathlib import Path
 
@@ -54,28 +55,41 @@ def map_labels(values, id_to_source):
     return np.asarray([mapping[source] for source in sources], dtype=np.uint8)[inverse].reshape(values.shape)
 
 
-def load_slice(case, id_to_source):
-    source = nib.load(ROOT / case["image"])
+def cached_slices(path, axis, id_to_source=(), reference=None):
+    # invalidate cached arrays when source files or label mappings change
+    paths = [path] if reference is None else [path, reference]
+    signature = [(str(item), item.stat().st_size, item.stat().st_mtime_ns) for item in paths]
+    key = hashlib.sha256(json.dumps([signature, axis, id_to_source, 1]).encode()).hexdigest()
+    cached = OUTPUTS / "cache2d" / f"{key}.npy"
+    if not cached.exists():
+        cached.parent.mkdir(parents=True, exist_ok=True)
+        source = nib.load(path)
+        if reference is None:
+            values = np.asarray(source.dataobj, dtype=np.float32)
+        else:
+            target = nib.load(reference)
+            # align the mask once per scan, only when its grid differs
+            if source.shape != target.shape or not np.array_equal(source.affine, target.affine):
+                source = resample_from_to(source, (target.shape, target.affine), order=0)
+            values = map_labels(np.asanyarray(source.dataobj), id_to_source)
+        # store adjacent pixels together so shuffled slices read efficiently
+        np.save(cached, np.ascontiguousarray(np.moveaxis(values, axis, 0)))
+    return np.load(cached, mmap_mode="r")
+
+
+def load_slice(case, id_to_source, with_label=True):
     axis, index = case["slice_axis"], case["slice_index"]
-    region = [slice(None)] * 3
-    region[axis] = slice(index, index + 1)
-    region = tuple(region)
-    values = np.asarray(source.dataobj[region], dtype=np.float32)
-    image = values.squeeze(axis)
+    image = cached_slices(ROOT / case["image"], axis)[index]
 
     # training and prediction use the same per slice z score
     mean, std = float(image.mean()), float(image.std())
     image = (image - mean) / (std + 1e-8)
 
-    label = nib.load(ROOT / case["label"])
-    offset = np.eye(4)
-    offset[axis, 3] = index
-    shape = list(source.shape)
-    shape[axis] = 1
-    
-    resampled = resample_from_to(label, (tuple(shape), source.affine @ offset), order=0)
-    label = map_labels(np.asanyarray(resampled.dataobj).squeeze(axis), id_to_source)
-    return {"image": image, "label": label}
+    item = {"image": image}
+    if with_label:
+        item["label"] = cached_slices(ROOT / case["label"], axis, id_to_source,
+                                      ROOT / case["image"])[index]
+    return item
 
 
 class SliceDataset(Dataset):
