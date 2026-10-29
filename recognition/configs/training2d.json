@@ -1,5 +1,5 @@
 {
-  "run_id": "pytorch_resunet_paper_adapted_2d",
+  "run_id": "2d_unet",
   "pipeline": {
     "train": true,
     "predict": true,
@@ -7,7 +7,9 @@
   },
   "amp": true,
   "model": {
-    "channels": [16, 32, 64, 128, 256],
+    "channels": [64, 128, 256, 512, 1024],
+    "input_patch_size": [572, 572],
+    "output_patch_size": [388, 388],
     "strides": [2, 2, 2, 2],
     "kernel_size": 3,
     "norm_epsilon": 1e-05,
