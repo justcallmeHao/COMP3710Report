@@ -50,6 +50,7 @@
     "steps_per_epoch": 100,
     "validation_interval": 1,
     "learning_rate": 0.0005,
+    "momentum": 0.0,
     "weight_decay": 1e-05,
     "lr_decay": 0.985,
     "batch_size": 1
@@ -62,6 +63,7 @@
     "partition": "validation",
     "prediction_id": "validation_v1",
     "weight_floor": 0.0001,
+    "output_patch_size": [44, 44, 28],
     "patch_size": [
       132,
       132,
