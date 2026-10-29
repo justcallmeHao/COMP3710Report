@@ -124,7 +124,6 @@ def run_training(config, training_cases, validation_cases, directory, device, am
                  "config": config}
         if improved:
             torch.save(state, directory / "best.pt")
-        torch.save(state, directory / "latest.pt")
 
         row = {"epoch": epoch, "learning_rate": learning_rate, "seconds": time.perf_counter() - began,
                **{f"train_{name}": value for name, value in zip(("loss", "dice_loss", "ce_loss"), train_losses)},

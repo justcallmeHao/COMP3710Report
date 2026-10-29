@@ -7,19 +7,11 @@
     "test": true,
     "plot": true
   },
-  "seed": 42,
   "amp": true,
   "model": {
     "channels": [64, 128, 256, 512, 1024],
     "input_patch_size": [572, 572],
-    "output_patch_size": [388, 388],
-    "strides": [2, 2, 2, 2],
-    "kernel_size": 3,
-    "norm_epsilon": 1e-05,
-    "norm_affine": true,
-    "negative_slope": 0.01,
-    "dropout": 0.3,
-    "bias": true
+    "output_patch_size": [388, 388]
   },
   "loss": {
     "include_background": false,
@@ -28,7 +20,7 @@
     "lambda_ce": 1.0
   },
   "training": {
-    "epochs": 1,
+    "epochs": 100,
     "learning_rate": 0.0005,
     "weight_decay": 1e-05,
     "lr_decay": 0.985,

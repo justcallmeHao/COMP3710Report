@@ -7,7 +7,6 @@
     "test": true,
     "plot": true
   },
-  "seed": 42,
   "amp": true,
   "data": {
     "root": "data",
@@ -47,7 +46,7 @@
     "lambda_ce": 1.0
   },
   "training": {
-    "epochs": 1,
+    "epochs": 100,
     "steps_per_epoch": 100,
     "validation_interval": 1,
     "learning_rate": 0.0005,

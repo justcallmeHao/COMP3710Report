@@ -42,10 +42,10 @@ def learning_curves(run, destination, settings):
     plt.close(fig)
 
 
-def score_boxes(path, destination, settings, seed):
+def score_boxes(path, destination, settings):
     rows = csv_rows(path)
     names = list(dict.fromkeys(row["class_name"] for row in rows))
-    random = np.random.default_rng(seed)
+    random = np.random.default_rng()
     fig, axes = plt.subplots(2, 2, figsize=settings["figure_size"], layout="constrained")
     for axis, metric in zip(axes.flat, ("dice", "precision", "recall", "iou")):
         values = [column([r for r in rows if r["class_name"] == name], metric) for name in names]
@@ -97,17 +97,18 @@ def overlays(prediction_dir, destination, settings):
         plt.close(fig)
 
 
-def plot(config):
+def plot(config, include_training=True):
     settings = config["graphs"]
     run = OUTPUTS / config["run_id"]
     destination = run / settings["figure_id"]
     destination.mkdir(exist_ok=False)
-    learning_curves(run, destination, settings)
-    score_boxes(run / "best-patients.csv", destination, settings, config["seed"])
+    if include_training:
+        learning_curves(run, destination, settings)
+        score_boxes(run / "best-patients.csv", destination, settings)
     prediction_dir = run / config["inference"]["prediction_id"]
     if (prediction_dir / "predictions.json").exists():
         overlays(prediction_dir, destination, settings)
     if (prediction_dir / "evaluation-patients.csv").exists():
-        score_boxes(prediction_dir / "evaluation-patients.csv", destination, settings, config["seed"])
+        score_boxes(prediction_dir / "evaluation-patients.csv", destination, settings)
     print(f"Saved figures to {destination}")
 

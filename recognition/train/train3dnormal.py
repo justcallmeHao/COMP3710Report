@@ -100,10 +100,9 @@ def run_training(config, cases, splits, directory, device, amp):
         scheduler.step()
 
         state = {"model": model.state_dict(), "epoch": epoch, "best_score": best_score,
-                 "config": resolved, "splits": splits, "cases": cases}
+                 "config": resolved, "splits": splits}
         if improved:
             torch.save(state, directory / "best.pt")
-        torch.save(state, directory / "latest.pt")
         row = {"epoch": epoch, "learning_rate": learning_rate, "seconds": time.perf_counter() - began,
                **{f"train_{name}": value for name, value in zip(("loss", "dice_loss", "ce_loss"), train_losses)},
                **{f"validation_{name}": value for name, value in zip(("loss", "dice_loss", "ce_loss"), validation_losses)},

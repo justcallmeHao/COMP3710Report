@@ -16,9 +16,17 @@ class PipelineTests(unittest.TestCase):
         calls = []
 
         def record(stage):
-            return lambda current: calls.append((stage, deepcopy(current)))
+            def record_call(current, include_training=True):
+                calls.append((stage, deepcopy(current)))
+            return record_call
 
-        run_pipeline(config, **{stage: record(stage) for stage in ("train", "predict", "evaluate", "plot")})
+        run_pipeline(
+            config,
+            train=record("train"),
+            predict=record("predict"),
+            evaluate=record("evaluate"),
+            plot=record("plot"),
+        )
         return calls
 
     def test_all_pipelines_keep_validation_and_test_separate(self):

@@ -21,4 +21,4 @@ def run_pipeline(config, *, train, predict, evaluate, plot):
     if stages["plot"]:
         plot(config)
         if stages.get("test", False):
-            plot(test_config)
+            plot(test_config, include_training=False)

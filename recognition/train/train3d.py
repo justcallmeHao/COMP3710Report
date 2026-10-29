@@ -110,7 +110,7 @@ def run_training(config, cases, splits, directory, device, amp):
     scaler = torch.amp.GradScaler("cuda", enabled=amp)
 
     # set output paths and initialise best-score tracking
-    latest, best = directory / "latest.pt", directory / "best.pt"
+    best = directory / "best.pt"
     epoch_log = directory / "epochs.csv"
     best_score = -1.0
     best_rows = None
@@ -154,13 +154,12 @@ def run_training(config, cases, splits, directory, device, amp):
                **{f"validation_{name}": value for name, value in zip(("loss", "dice_loss", "ce_loss"), validation_losses)},
                **{f"validation_{metric}": metrics[metric] for metric in METRICS}}
 
-        # save prediction-ready checkpoints for the latest and best models
+        # save the best model for prediction
         state = {"model": model.state_dict(),
                  "epoch": epoch, "best_score": best_score, "config": resolved,
-                 "splits": splits, "cases": cases}
+                 "splits": splits}
         if improved:
             torch.save(state, best)
-        torch.save(state, latest)
 
         # append the epoch results and write the header for a new log
         exists = epoch_log.exists()
