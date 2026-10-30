@@ -1,0 +1,224 @@
+{
+  "aggregation": "slice -> mean slices per patient/class -> mean patients per class -> equal class mean",
+  "patient_count": 6,
+  "slice_count": 4352,
+  "scan_count": 34,
+  "classes": [
+    {
+      "class_id": 1,
+      "class_name": "1",
+      "dice": {
+        "mean": 0.0,
+        "std": 0.0,
+        "valid": 6,
+        "excluded": 0
+      },
+      "iou": {
+        "mean": 0.0,
+        "std": 0.0,
+        "valid": 6,
+        "excluded": 0
+      },
+      "precision": {
+        "mean": null,
+        "std": null,
+        "valid": 0,
+        "excluded": 6
+      },
+      "recall": {
+        "mean": 0.0,
+        "std": 0.0,
+        "valid": 6,
+        "excluded": 0
+      }
+    },
+    {
+      "class_id": 2,
+      "class_name": "2",
+      "dice": {
+        "mean": 0.0,
+        "std": 0.0,
+        "valid": 6,
+        "excluded": 0
+      },
+      "iou": {
+        "mean": 0.0,
+        "std": 0.0,
+        "valid": 6,
+        "excluded": 0
+      },
+      "precision": {
+        "mean": null,
+        "std": null,
+        "valid": 0,
+        "excluded": 6
+      },
+      "recall": {
+        "mean": 0.0,
+        "std": 0.0,
+        "valid": 6,
+        "excluded": 0
+      }
+    },
+    {
+      "class_id": 3,
+      "class_name": "3",
+      "dice": {
+        "mean": 0.0,
+        "std": 0.0,
+        "valid": 6,
+        "excluded": 0
+      },
+      "iou": {
+        "mean": 0.0,
+        "std": 0.0,
+        "valid": 6,
+        "excluded": 0
+      },
+      "precision": {
+        "mean": null,
+        "std": null,
+        "valid": 0,
+        "excluded": 6
+      },
+      "recall": {
+        "mean": 0.0,
+        "std": 0.0,
+        "valid": 6,
+        "excluded": 0
+      }
+    },
+    {
+      "class_id": 4,
+      "class_name": "4",
+      "dice": {
+        "mean": 0.0,
+        "std": 0.0,
+        "valid": 6,
+        "excluded": 0
+      },
+      "iou": {
+        "mean": 0.0,
+        "std": 0.0,
+        "valid": 6,
+        "excluded": 0
+      },
+      "precision": {
+        "mean": null,
+        "std": null,
+        "valid": 0,
+        "excluded": 6
+      },
+      "recall": {
+        "mean": 0.0,
+        "std": 0.0,
+        "valid": 6,
+        "excluded": 0
+      }
+    },
+    {
+      "class_id": 5,
+      "class_name": "5",
+      "dice": {
+        "mean": 0.0,
+        "std": 0.0,
+        "valid": 6,
+        "excluded": 0
+      },
+      "iou": {
+        "mean": 0.0,
+        "std": 0.0,
+        "valid": 6,
+        "excluded": 0
+      },
+      "precision": {
+        "mean": null,
+        "std": null,
+        "valid": 0,
+        "excluded": 6
+      },
+      "recall": {
+        "mean": 0.0,
+        "std": 0.0,
+        "valid": 6,
+        "excluded": 0
+      }
+    }
+  ],
+  "foreground_macro": {
+    "dice": 0.0,
+    "iou": 0.0,
+    "precision": null,
+    "recall": 0.0
+  },
+  "patient_macro": [
+    {
+      "patient_id": "J026",
+      "dice": 0.0,
+      "iou": 0.0,
+      "precision": null,
+      "recall": 0.0
+    },
+    {
+      "patient_id": "K008",
+      "dice": 0.0,
+      "iou": 0.0,
+      "precision": null,
+      "recall": 0.0
+    },
+    {
+      "patient_id": "M015",
+      "dice": 0.0,
+      "iou": 0.0,
+      "precision": null,
+      "recall": 0.0
+    },
+    {
+      "patient_id": "M023",
+      "dice": 0.0,
+      "iou": 0.0,
+      "precision": null,
+      "recall": 0.0
+    },
+    {
+      "patient_id": "S022",
+      "dice": 0.0,
+      "iou": 0.0,
+      "precision": null,
+      "recall": 0.0
+    },
+    {
+      "patient_id": "V027",
+      "dice": 0.0,
+      "iou": 0.0,
+      "precision": null,
+      "recall": 0.0
+    }
+  ],
+  "patient_macro_distribution": {
+    "dice": {
+      "mean": 0.0,
+      "std": 0.0,
+      "valid": 6,
+      "excluded": 0
+    },
+    "iou": {
+      "mean": 0.0,
+      "std": 0.0,
+      "valid": 6,
+      "excluded": 0
+    },
+    "precision": {
+      "mean": null,
+      "std": null,
+      "valid": 0,
+      "excluded": 6
+    },
+    "recall": {
+      "mean": 0.0,
+      "std": 0.0,
+      "valid": 6,
+      "excluded": 0
+    }
+  }
+}

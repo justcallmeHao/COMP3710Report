@@ -1,0 +1,240 @@
+{
+  "aggregation": "full scan -> mean visits per patient/class -> mean patients per class -> equal class mean",
+  "patient_count": 8,
+  "scan_count": 64,
+  "classes": [
+    {
+      "class_id": 1,
+      "class_name": "label 1",
+      "dice": {
+        "mean": 0.881951910443604,
+        "std": 0.02736185542830829,
+        "valid": 8,
+        "excluded": 0
+      },
+      "precision": {
+        "mean": 0.9009518870961137,
+        "std": 0.06812490756554188,
+        "valid": 8,
+        "excluded": 0
+      },
+      "recall": {
+        "mean": 0.8690569729260227,
+        "std": 0.027065473666417317,
+        "valid": 8,
+        "excluded": 0
+      },
+      "iou": {
+        "mean": 0.7901004184024053,
+        "std": 0.04189328405941418,
+        "valid": 8,
+        "excluded": 0
+      }
+    },
+    {
+      "class_id": 2,
+      "class_name": "label 2",
+      "dice": {
+        "mean": 0.6718194847926497,
+        "std": 0.026862064638509212,
+        "valid": 8,
+        "excluded": 0
+      },
+      "precision": {
+        "mean": 0.630372218957792,
+        "std": 0.0601045431142083,
+        "valid": 8,
+        "excluded": 0
+      },
+      "recall": {
+        "mean": 0.7314571199438268,
+        "std": 0.050937085936995495,
+        "valid": 8,
+        "excluded": 0
+      },
+      "iou": {
+        "mean": 0.5070513889050614,
+        "std": 0.030441049134983175,
+        "valid": 8,
+        "excluded": 0
+      }
+    },
+    {
+      "class_id": 3,
+      "class_name": "label 3",
+      "dice": {
+        "mean": 0.7968264319933951,
+        "std": 0.06076074847637094,
+        "valid": 8,
+        "excluded": 0
+      },
+      "precision": {
+        "mean": 0.8983934957138371,
+        "std": 0.0274056924869257,
+        "valid": 8,
+        "excluded": 0
+      },
+      "recall": {
+        "mean": 0.730851268025645,
+        "std": 0.09639511075762641,
+        "valid": 8,
+        "excluded": 0
+      },
+      "iou": {
+        "mean": 0.6713826337699167,
+        "std": 0.07659906558850976,
+        "valid": 8,
+        "excluded": 0
+      }
+    },
+    {
+      "class_id": 4,
+      "class_name": "label 4",
+      "dice": {
+        "mean": 0.7050465578213334,
+        "std": 0.081422064409652,
+        "valid": 8,
+        "excluded": 0
+      },
+      "precision": {
+        "mean": 0.8640331538235599,
+        "std": 0.04940452510033256,
+        "valid": 8,
+        "excluded": 0
+      },
+      "recall": {
+        "mean": 0.6152014624389436,
+        "std": 0.116381138984378,
+        "valid": 8,
+        "excluded": 0
+      },
+      "iou": {
+        "mean": 0.5551071872185516,
+        "std": 0.09165074107026451,
+        "valid": 8,
+        "excluded": 0
+      }
+    },
+    {
+      "class_id": 5,
+      "class_name": "label 5",
+      "dice": {
+        "mean": 0.6002335390076041,
+        "std": 0.06496523117277085,
+        "valid": 8,
+        "excluded": 0
+      },
+      "precision": {
+        "mean": 0.579892986461988,
+        "std": 0.1204276959446115,
+        "valid": 8,
+        "excluded": 0
+      },
+      "recall": {
+        "mean": 0.6636994232938882,
+        "std": 0.06603011815436152,
+        "valid": 8,
+        "excluded": 0
+      },
+      "iou": {
+        "mean": 0.43340812152686786,
+        "std": 0.06177647585915336,
+        "valid": 8,
+        "excluded": 0
+      }
+    }
+  ],
+  "foreground_macro": {
+    "dice": 0.7311755848117173,
+    "precision": 0.7747287484106581,
+    "recall": 0.7220532493256653,
+    "iou": 0.5914099499645605
+  },
+  "patient_macro": [
+    {
+      "patient_id": "C032",
+      "dice": 0.773613877594471,
+      "precision": 0.7822180291563138,
+      "recall": 0.7806323188423686,
+      "iou": 0.6450822640563123
+    },
+    {
+      "patient_id": "G021",
+      "dice": 0.6774284727871418,
+      "precision": 0.7101293186659853,
+      "recall": 0.7068949189765892,
+      "iou": 0.5214168638316746
+    },
+    {
+      "patient_id": "K019",
+      "dice": 0.7269606769084931,
+      "precision": 0.8417482031589338,
+      "recall": 0.6492283066076749,
+      "iou": 0.5812387859596295
+    },
+    {
+      "patient_id": "R024",
+      "dice": 0.7491665229201316,
+      "precision": 0.7548558553926401,
+      "recall": 0.7579939751364032,
+      "iou": 0.6111957626075185
+    },
+    {
+      "patient_id": "R039",
+      "dice": 0.7046902135014534,
+      "precision": 0.7848488978166556,
+      "recall": 0.6713212657034868,
+      "iou": 0.5607371269040293
+    },
+    {
+      "patient_id": "S033",
+      "dice": 0.7622382134199143,
+      "precision": 0.8330521882078623,
+      "recall": 0.7085065583354265,
+      "iou": 0.6257577626913411
+    },
+    {
+      "patient_id": "T014",
+      "dice": 0.7197396859526635,
+      "precision": 0.7591328520002609,
+      "recall": 0.714978671396196,
+      "iou": 0.578186636385062
+    },
+    {
+      "patient_id": "W029",
+      "dice": 0.7355670154094696,
+      "precision": 0.7318446428866138,
+      "recall": 0.786869979607177,
+      "iou": 0.6076643972809175
+    }
+  ],
+  "patient_macro_distribution": {
+    "dice": {
+      "mean": 0.7311755848117173,
+      "std": 0.02925667932894375,
+      "valid": 8,
+      "excluded": 0
+    },
+    "precision": {
+      "mean": 0.7747287484106582,
+      "std": 0.04286903659155545,
+      "valid": 8,
+      "excluded": 0
+    },
+    "recall": {
+      "mean": 0.7220532493256653,
+      "std": 0.046455618059590045,
+      "valid": 8,
+      "excluded": 0
+    },
+    "iou": {
+      "mean": 0.5914099499645606,
+      "std": 0.03680070950186508,
+      "valid": 8,
+      "excluded": 0
+    }
+  },
+  "all_dice_classes_available": true,
+  "dice_target": 0.7,
+  "dice_target_met": true
+}
