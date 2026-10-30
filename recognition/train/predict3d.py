@@ -1,5 +1,6 @@
 import importlib.metadata
 import platform
+import time
 from itertools import product
 
 import nibabel as nib
@@ -150,6 +151,7 @@ def predict(requested):
 
     # collect saved prediction paths
     predictions = []
+    measure_time = settings["partition"] == "test"
     for case in selected:
         # reset GPU usage checker to measure for this case
         if device.type == "cuda":
@@ -157,6 +159,7 @@ def predict(requested):
             torch.cuda.reset_peak_memory_stats(device)
 
         # load each cached scan and predict class probabilities
+        started = time.perf_counter() if measure_time else None
         item = load_volume(case, with_label=False)
         _, probabilities = infer_volume(model, item, config, device, amp)
 
@@ -165,6 +168,7 @@ def predict(requested):
         labels = probabilities.argmax(0)
         if device.type == "cuda":
             torch.cuda.synchronize(device)
+        seconds = time.perf_counter() - started if measure_time else None
         save_prediction(directory / filename, labels, case, config)
 
         # GPU usage
@@ -174,6 +178,8 @@ def predict(requested):
         # record the saved prediction path for this case
         predictions.append({**case, "prediction": filename,
                             "peak_gpu_allocated_mib": peak_gpu})
+        if measure_time:
+            predictions[-1]["inference_seconds"] = seconds
 
     # save metadata for evaluation and plotting
     manifest = {"protocol": protocol, "config": config, "versions": versions(device), "cases": predictions}

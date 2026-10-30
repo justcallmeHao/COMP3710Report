@@ -102,6 +102,21 @@ def overlays(prediction_dir, destination, settings):
         plt.close(fig)
 
 
+def inference_times(prediction_dir, destination, settings):
+    manifest = read_json(prediction_dir / "predictions.json")
+    cases = [case for case in manifest["cases"]
+             if case.get("inference_seconds") is not None]
+    if not cases:
+        return  # Older prediction files do not contain timing measurements.
+    fig, axis = plt.subplots(figsize=settings["figure_size"], layout="constrained")
+    axis.plot(range(1, len(cases) + 1), [case["inference_seconds"] for case in cases],
+              marker="o", markersize=4, linewidth=1.5)
+    axis.set(xlabel="Test case index (timed cases in predictions.json order)",
+             ylabel="Inference time (seconds)")
+    fig.savefig(destination / "inference-times.png", dpi=settings["dpi"])
+    plt.close(fig)
+
+
 def plot(config, include_training=True):
     settings = config["graphs"]
     run = OUTPUTS / config["run_id"]
@@ -113,6 +128,8 @@ def plot(config, include_training=True):
     prediction_dir = run / config["inference"]["prediction_id"]
     if (prediction_dir / "predictions.json").exists():
         overlays(prediction_dir, destination, settings)
+        if config["inference"]["partition"] == "test":
+            inference_times(prediction_dir, destination, settings)
     if (prediction_dir / "evaluation-patients.csv").exists():
         score_boxes(prediction_dir / "evaluation-patients.csv", destination, settings)
     print(f"Saved figures to {destination}")

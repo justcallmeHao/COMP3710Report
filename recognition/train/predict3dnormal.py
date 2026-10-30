@@ -1,4 +1,5 @@
 from itertools import product
+import time
 
 import torch
 
@@ -59,17 +60,23 @@ def predict(requested):
     model.eval()
 
     predictions = []
+    measure_time = settings["partition"] == "test"
     for case in selected:
         if device.type == "cuda":
             torch.cuda.synchronize(device)
             torch.cuda.reset_peak_memory_stats(device)
+        started = time.perf_counter() if measure_time else None
         _, probabilities = infer_volume(model, load_volume(case, with_label=False), config, device, amp)
         filename = f"{case['case_id']}-prediction.nii.gz"
-        save_prediction(directory / filename, probabilities.argmax(0), case, config)
+        labels = probabilities.argmax(0)
         if device.type == "cuda":
             torch.cuda.synchronize(device)
+        seconds = time.perf_counter() - started if measure_time else None
+        save_prediction(directory / filename, labels, case, config)
         peak_gpu = torch.cuda.max_memory_allocated(device) / 1024**2 if device.type == "cuda" else None
         predictions.append({**case, "prediction": filename, "peak_gpu_allocated_mib": peak_gpu})
+        if measure_time:
+            predictions[-1]["inference_seconds"] = seconds
 
     protocol = {"partition": settings["partition"], "checkpoint": str(checkpoint_path),
                 "checkpoint_epoch": checkpoint["epoch"], "checkpoint_best_score": checkpoint["best_score"],
