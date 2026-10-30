@@ -6,7 +6,7 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 
-from .preprocess3D import PREPROCESSED, ROOT, map_labels, preprocess
+from helpers.preprocess3D import PREPROCESSED, ROOT, map_labels, preprocess
 
 OUTPUTS = ROOT / "outputs"
 

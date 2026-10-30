@@ -1,7 +1,7 @@
 import json
 
-from train.preprocess2D import preprocess as preprocess2d
-from train.preprocess3D import ROOT, preprocess as preprocess3d
+from helpers.preprocess2D import preprocess as preprocess2d
+from helpers.preprocess3D import ROOT, preprocess as preprocess3d
 
 
 def main():

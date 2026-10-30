@@ -8,10 +8,10 @@ from torch.nn import functional as F
 from torch.utils.data import DataLoader, WeightedRandomSampler
 from torchmetrics.functional.segmentation import dice_score
 
-from .data3d import OUTPUTS, ROOT, PatchDataset, discover, load_volume, read_json, resolve_spacing, select_cases, write_json
-from .evaluate3d import METRICS, case_metrics, label_tensor, save_metrics
-from .model3d import ResidualUNet3D
-from .predict3d import infer_volume, select_device, versions
+from dataset import OUTPUTS, ROOT, PatchDataset, discover, load_volume, read_json, resolve_spacing, select_cases, write_json
+from helpers.evaluate3d import METRICS, case_metrics, label_tensor, save_metrics
+from modules import ResidualUNet3D
+from predict import infer_volume, select_device, versions
 
 
 def segmentation_loss(logits, target, settings):
@@ -201,3 +201,18 @@ def train(config):
     # run training and save the best validation results
     rows = run_training(config, cases, splits, directory, device, amp)
     save_metrics(directory, "validation", rows, config)
+
+
+def main():
+    from graphs.plot import plot
+    from helpers.evaluate3d import evaluate
+    from helpers.pipeline import run_pipeline
+    from predict import predict
+
+    config = read_json(ROOT / "configs/training3d.json")
+    config["labels"] = read_json(ROOT / config["data"]["labels_file"])
+    run_pipeline(config, train=train, predict=predict, evaluate=evaluate, plot=plot)
+
+
+if __name__ == "__main__":
+    main()

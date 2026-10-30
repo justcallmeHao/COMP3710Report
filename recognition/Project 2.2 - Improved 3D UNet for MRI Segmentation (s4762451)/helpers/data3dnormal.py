@@ -2,7 +2,7 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 
-from .data3d import load_volume
+from dataset import load_volume
 
 
 def pad_image(image, input_size, output_size):

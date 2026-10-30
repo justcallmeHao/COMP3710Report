@@ -3,7 +3,7 @@ import unittest
 from copy import deepcopy
 from pathlib import Path
 
-from train.pipeline import run_pipeline
+from helpers.pipeline import run_pipeline
 
 
 class PipelineTests(unittest.TestCase):

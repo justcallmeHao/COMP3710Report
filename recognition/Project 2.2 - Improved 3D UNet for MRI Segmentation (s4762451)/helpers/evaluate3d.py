@@ -6,7 +6,7 @@ import torch
 from sklearn.metrics import jaccard_score, precision_recall_fscore_support
 from torchmetrics.functional.segmentation import dice_score
 
-from .data3d import OUTPUTS, ROOT, map_labels, read_json, write_json
+from dataset import OUTPUTS, ROOT, map_labels, read_json, write_json
 
 METRICS = ("dice", "precision", "recall", "iou")
 

@@ -1,9 +1,9 @@
 from graphs.plot import plot
-from train.data3d import ROOT, read_json
-from train.evaluate3d import evaluate
-from train.predict3dnormal import predict
-from train.pipeline import run_pipeline
-from train.train3dnormal import train
+from dataset import ROOT, read_json
+from helpers.evaluate3d import evaluate
+from helpers.predict3dnormal import predict
+from helpers.pipeline import run_pipeline
+from helpers.train3dnormal import train
 
 
 def main():

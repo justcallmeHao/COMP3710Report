@@ -8,11 +8,11 @@ from torch.nn import functional as F
 from torch.utils.data import DataLoader, WeightedRandomSampler
 from torchmetrics.functional.segmentation import dice_score
 
-from .data3d import OUTPUTS, ROOT, discover, load_volume, read_json, resolve_spacing, select_cases, write_json
+from dataset import OUTPUTS, ROOT, discover, load_volume, read_json, resolve_spacing, select_cases, write_json
 from .data3dnormal import PatchDataset
 from .evaluate3d import METRICS, case_metrics, label_tensor, save_metrics
 from .model3dnormal import UNet3D
-from .predict3d import select_device, versions
+from predict import select_device, versions
 from .predict3dnormal import infer_volume
 
 

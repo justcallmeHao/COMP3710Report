@@ -8,7 +8,7 @@ import numpy as np
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-from train.data3d import OUTPUTS, ROOT, map_labels, read_json
+from dataset import OUTPUTS, ROOT, map_labels, read_json
 
 
 def csv_rows(path):

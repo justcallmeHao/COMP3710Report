@@ -1,11 +1,11 @@
 import json
 
 from graphs.plot import plot
-from train.data2d import ROOT
-from train.evaluate2d import evaluate
-from train.predict2d import predict
-from train.pipeline import run_pipeline
-from train.train2d import train
+from helpers.data2d import ROOT
+from helpers.evaluate2d import evaluate
+from helpers.predict2d import predict
+from helpers.pipeline import run_pipeline
+from helpers.train2d import train
 
 
 def main():

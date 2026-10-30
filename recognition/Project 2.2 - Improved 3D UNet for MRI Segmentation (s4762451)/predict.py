@@ -9,8 +9,8 @@ import torch
 from nibabel.processing import resample_from_to
 from torch.nn import functional as F
 
-from .data3d import OUTPUTS, ROOT, discover, load_volume, select_cases, write_json
-from .model3d import ResidualUNet3D
+from dataset import OUTPUTS, ROOT, discover, load_volume, select_cases, write_json
+from modules import ResidualUNet3D
 
 
 def select_device(use_amp):
@@ -185,3 +185,20 @@ def predict(requested):
     manifest = {"protocol": protocol, "config": config, "versions": versions(device), "cases": predictions}
     write_json(directory / "predictions.json", manifest)
     print(f"Saved {len(predictions)} original-geometry predictions to {directory}")
+
+
+def main():
+    """Load saved weights, predict the configured split, evaluate, and draw overlays."""
+    from dataset import read_json
+    from graphs.plot import plot
+    from helpers.evaluate3d import evaluate
+
+    config = read_json(ROOT / "configs/training3d.json")
+    config["labels"] = read_json(ROOT / config["data"]["labels_file"])
+    predict(config)
+    evaluate(config)
+    plot(config, include_training=False)
+
+
+if __name__ == "__main__":
+    main()

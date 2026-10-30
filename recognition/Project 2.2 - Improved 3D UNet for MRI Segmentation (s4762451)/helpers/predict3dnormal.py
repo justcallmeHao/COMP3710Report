@@ -3,10 +3,10 @@ import time
 
 import torch
 
-from .data3d import OUTPUTS, discover, load_volume, select_cases, write_json
+from dataset import OUTPUTS, discover, load_volume, select_cases, write_json
 from .data3dnormal import pad_image
 from .model3dnormal import UNet3D
-from .predict3d import restore_probabilities, save_prediction, select_device, versions, window_starts
+from predict import restore_probabilities, save_prediction, select_device, versions, window_starts
 
 
 @torch.inference_mode()
