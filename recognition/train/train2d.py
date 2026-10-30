@@ -109,14 +109,16 @@ def run_training(config, training_cases, validation_cases, directory, device, am
         began = time.perf_counter()
         learning_rate = optimizer.param_groups[0]["lr"]
         train_losses = train_epoch(model, training, config["loss"], optimizer, scaler, device, amp)
-        validation_losses, validation_rows = validate(model, validation_cases, config, device, amp)
-        summary = save_metrics(directory, "validation", validation_rows, config)
-        metrics = summary["foreground_macro"]
-        target_count = target_count + 1 if metrics["dice"] is not None and metrics["dice"] > 0.70 else 0
-        improved = metrics["dice"] is not None and metrics["dice"] > best_score
-        if improved:
-            best_score = metrics["dice"]
-            save_metrics(directory, "best", validation_rows, config)
+        validation_losses, metrics, improved = [None] * 3, dict.fromkeys(METRICS), False
+        if epoch % settings.get("validation_interval", 1) == 0 or epoch == settings["epochs"]:
+            validation_losses, validation_rows = validate(model, validation_cases, config, device, amp)
+            summary = save_metrics(directory, "validation", validation_rows, config)
+            metrics = summary["foreground_macro"]
+            target_count = target_count + 1 if metrics["dice"] is not None and metrics["dice"] > 0.70 else 0
+            improved = metrics["dice"] is not None and metrics["dice"] > best_score
+            if improved:
+                best_score = metrics["dice"]
+                save_metrics(directory, "best", validation_rows, config)
         scheduler.step()
 
         # keep checkpoint fields compatible with prediction
@@ -135,7 +137,7 @@ def run_training(config, training_cases, validation_cases, directory, device, am
                 writer.writeheader()
             writer.writerow(row)
         print(f"Epoch {epoch}/{settings['epochs']}: train={train_losses[0]:.4f}, "
-              f"validation={validation_losses[0]:.4f}, Dice={metrics['dice']}, "
+              f"validation={validation_losses[0]}, Dice={metrics['dice']}, "
               f"lr={learning_rate:.6g}, seconds={row['seconds']:.1f}", flush=True)
         if target_count >= 5:
             print("stopped after 5 consecutive validations with Dice > 0.70.", flush=True)
