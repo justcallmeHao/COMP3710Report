@@ -48,16 +48,16 @@
   "training": {
     "epochs": 100,
     "steps_per_epoch": 100,
-    "validation_interval": 1,
+    "validation_interval": 20,
     "learning_rate": 0.0005,
     "momentum": 0.0,
     "weight_decay": 1e-05,
-    "lr_decay": 0.985,
+    "lr_decay": 0.995,
     "batch_size": 1
   },
   "inference": {
     "overlap": 0.5,
-    "batch_size": 1,
+    "batch_size": 2,
     "sigma_scale": 0.125,
     "checkpoint": "best",
     "partition": "validation",

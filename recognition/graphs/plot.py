@@ -27,11 +27,16 @@ def learning_curves(run, destination, settings):
     for axis, metric, title in zip(axes[0], ("loss", "dice_loss", "ce_loss"),
                                    ("Total Dice + CE loss", "Dice loss component", "CE loss component")):
         for phase in ("train", "validation"):
-            axis.plot(epochs, column(rows, f"{phase}_{metric}"), label=phase)
+            values = column(rows, f"{phase}_{metric}")
+            valid = np.isfinite(values)
+            axis.plot(epochs[valid], values[valid], label=phase,
+                      marker="o" if phase == "validation" else None)
         axis.set(xlabel="Epoch", ylabel=title)
         axis.legend()
     for metric in ("dice", "precision", "recall", "iou"):
-        axes[1, 0].plot(epochs, column(rows, f"validation_{metric}"), label=metric)
+        values = column(rows, f"validation_{metric}")
+        valid = np.isfinite(values)
+        axes[1, 0].plot(epochs[valid], values[valid], marker="o", label=metric)
     axes[1, 0].set(xlabel="Epoch", ylabel="Validation foreground macro", ylim=(0, 1))
     axes[1, 0].legend()
     axes[1, 1].plot(epochs, column(rows, "learning_rate"))
