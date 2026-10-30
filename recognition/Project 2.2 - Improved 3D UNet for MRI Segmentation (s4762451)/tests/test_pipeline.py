@@ -3,7 +3,7 @@ import unittest
 from copy import deepcopy
 from pathlib import Path
 
-from recognition.train.pipeline import run_pipeline
+from train.pipeline import run_pipeline
 
 
 class PipelineTests(unittest.TestCase):
@@ -31,6 +31,7 @@ class PipelineTests(unittest.TestCase):
 
     def test_all_pipelines_keep_validation_and_test_separate(self):
         for config in self.configs():
+            config["pipeline"] = dict(train=True, predict=True, evaluate=True, test=True, plot=True)
             with self.subTest(run=config["run_id"]):
                 original = deepcopy(config)
                 calls = self.run_stages(config)
