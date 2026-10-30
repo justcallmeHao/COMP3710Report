@@ -16,6 +16,7 @@ from predict import infer_volume, select_device, versions
 
 def segmentation_loss(logits, target, settings):
     # remove the label channel dimension for cross-entropy
+    """calculate combined dice and cross-entropy loss and return both components"""
     target = target[:, 0].long()
 
     # convert predictions to probabilities and labels to one-hot channels
@@ -36,6 +37,7 @@ def segmentation_loss(logits, target, settings):
 
 def train_epoch(model, loader, loss_settings, optimizer, scaler, device, amp):
     # enable training mode and collect batch losses
+    """train for one epoch and return mean losses"""
     model.train()
     totals = []
     for batch in loader:
@@ -64,6 +66,7 @@ def train_epoch(model, loader, loss_settings, optimizer, scaler, device, amp):
 @torch.inference_mode()
 def validate(model, cases, config, device, amp):
     # disable training behaviour and collect validation results
+    """return mean validation losses and per-class scan metrics"""
     model.eval()
     losses, rows = [], []
     for case in cases:
@@ -85,6 +88,7 @@ def validate(model, cases, config, device, amp):
 
 def run_training(config, cases, splits, directory, device, amp):
     # select training and validation scans and resolve voxel spacing
+    """train and validate the model while saving metrics and the best checkpoint"""
     training_cases = select_cases(cases, splits["train"])
     validation_cases = select_cases(cases, splits["validation"])
     settings = config["training"]
@@ -186,6 +190,7 @@ def run_training(config, cases, splits, directory, device, amp):
 
 def train(config):
     # discover scans and create a new training output directory
+    """prepare the data and output directory and run model training"""
     directory = OUTPUTS / config["run_id"]
     splits = read_json(ROOT / config["data"]["splits_file"])
     cases = discover(config)
@@ -204,6 +209,7 @@ def train(config):
 
 
 def main():
+    """load the improved 3D config and labels and run the enabled pipeline stages"""
     from graphs.plot import plot
     from helpers.evaluate3d import evaluate
     from helpers.pipeline import run_pipeline

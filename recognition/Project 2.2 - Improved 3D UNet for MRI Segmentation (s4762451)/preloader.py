@@ -5,6 +5,7 @@ from helpers.preprocess3D import ROOT, preprocess as preprocess3d
 
 
 def main():
+    """prepare cached slices and volumes for all three models"""
     config = json.loads((ROOT / "configs/training3d.json").read_text(encoding="utf-8"))
     config["labels"] = json.loads(
         (ROOT / config["data"]["labels_file"]).read_text(encoding="utf-8")

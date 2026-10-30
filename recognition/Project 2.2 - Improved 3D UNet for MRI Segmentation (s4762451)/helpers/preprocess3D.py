@@ -10,6 +10,7 @@ PREPROCESSED = ROOT / "data/preprocess3d"
 
 
 def map_labels(values, id_to_source):
+    """map source label IDs to consecutive class indices"""
     # map source label ids to class indexes
     mapping = {source: index for index, source in enumerate(id_to_source)}
     sources, inverse = np.unique(values, return_inverse=True)
@@ -17,6 +18,7 @@ def map_labels(values, id_to_source):
 
 
 def preprocess(config):
+    """resolve voxel spacing and cache processed volumes, labels, and geometry"""
     if PREPROCESSED.exists():
         print("Already preprocessed 3D data")
         return
@@ -66,6 +68,7 @@ def preprocess(config):
 
 def preprocess_volume(case, preprocessing, id_to_source):
     # load image voxels for preprocessing
+    """resample, crop, and normalize a scan and align its labels"""
     settings = preprocessing
     source = nib.load(ROOT / case["image"])
     values = source.get_fdata(dtype=np.float32)

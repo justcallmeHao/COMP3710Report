@@ -11,6 +11,7 @@ from predict import restore_probabilities, save_prediction, select_device, versi
 
 @torch.inference_mode()
 def infer_volume(model, item, config, device, amp):
+    """blend sliding window predictions and restore probabilities to the original grid"""
     settings = config["inference"]
     patch, output_size = settings["patch_size"], settings["output_patch_size"]
     original_shape = item["image"].shape
@@ -50,6 +51,7 @@ def infer_volume(model, item, config, device, amp):
 
 
 def predict(requested):
+    """load a checkpoint and save predictions for the requested patient split"""
     settings = requested["inference"]
     run = OUTPUTS / requested["run_id"]
     checkpoint_path = run / f"{settings['checkpoint']}.pt"

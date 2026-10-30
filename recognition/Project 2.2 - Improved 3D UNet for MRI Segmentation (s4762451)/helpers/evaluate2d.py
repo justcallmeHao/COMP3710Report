@@ -11,6 +11,7 @@ METRICS = ("dice", "iou", "precision", "recall")
 
 
 def label_tensor(path, config):
+    """load a label volume and convert source IDs to class indices"""
     # keep the full volume and map source IDs to class indices
     values = np.asanyarray(nib.load(path).dataobj)
     values = map_labels(values, config["labels"]["id_to_source"])
@@ -19,6 +20,7 @@ def label_tensor(path, config):
 
 @torch.no_grad()
 def foreground_counts(prediction, target):
+    """count overlapping, predicted, and reference pixels for each foreground class"""
     counts = []
     for label in range(1, 6):
         predicted, truth = prediction == label, target == label
@@ -27,6 +29,7 @@ def foreground_counts(prediction, target):
 
 
 def scores_from_counts(counts):
+    """calculate dice, IoU, precision, and recall from class counts"""
     intersection, predicted, truth = counts.to(torch.float64).unbind(dim=1)
     numerators = (2 * intersection, intersection, intersection, intersection)
     denominators = (predicted + truth, predicted + truth - intersection, predicted, truth)
@@ -35,6 +38,7 @@ def scores_from_counts(counts):
 
 
 def case_metrics(prediction, target, case, config):
+    """return foreground metrics and availability flags for one slice"""
     scores = scores_from_counts(foreground_counts(prediction, target))
     rows = []
     for index in range(5):
@@ -51,6 +55,7 @@ def case_metrics(prediction, target, case, config):
 
 
 def statistics(values):
+    """summarize finite values with mean, standard deviation, and availability counts"""
     valid = [value for value in values if value is not None and np.isfinite(value)]
     return {"mean": float(np.mean(valid)) if valid else None,
             "std": float(np.std(valid)) if valid else None,
@@ -58,6 +63,7 @@ def statistics(values):
 
 
 def summarize(rows, config):
+    """average slice metrics by patient and class and summarize foreground scores"""
     patients = sorted({row["patient_id"] for row in rows})
     patient_rows, classes = [], []
     for class_id in range(1, 6):
@@ -93,6 +99,7 @@ def summarize(rows, config):
 
 
 def write_csv(path, rows):
+    """write metric rows to a CSV file with a header"""
     with path.open("w", newline="", encoding="utf-8") as stream:
         writer = csv.DictWriter(stream, fieldnames=list(rows[0]))
         writer.writeheader()
@@ -100,6 +107,7 @@ def write_csv(path, rows):
 
 
 def save_metrics(directory, prefix, rows, config):
+    """save case metrics, patient averages, and summary statistics"""
     patient_rows, summary = summarize(rows, config)
     write_csv(directory / f"{prefix}-cases.csv", rows)
     write_json(directory / f"{prefix}-cases.json", rows)
@@ -109,6 +117,7 @@ def save_metrics(directory, prefix, rows, config):
 
 
 def evaluate(config):
+    """score saved predictions by slice and save aggregated metrics"""
     run_id = config["run_id"]
     directory = OUTPUTS / run_id / config["inference"]["prediction_id"]
     manifest = json.loads((directory / "predictions.json").read_text(encoding="utf-8"))

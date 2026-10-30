@@ -6,6 +6,7 @@ from dataset import load_volume
 
 
 def pad_image(image, input_size, output_size):
+    """zero-pad a volume for input context and the minimum output size"""
     padding = [((before - after) // 2, (before - after) // 2 + max(0, after - size))
                for size, before, after in zip(image.shape, input_size, output_size)]
     return np.pad(image, padding, mode="constant")
@@ -13,14 +14,17 @@ def pad_image(image, input_size, output_size):
 
 class PatchDataset(Dataset):
     def __init__(self, cases, settings):
+        """store scan cases and input and output patch sizes"""
         self.cases = cases
         self.input_size = settings["patch_size"]
         self.output_size = settings["output_patch_size"]
 
     def __len__(self):
+        """return the number of scans"""
         return len(self.cases)
 
     def __getitem__(self, index):
+        """sample an image patch and labels with padded voxels marked to ignore"""
         item = load_volume(self.cases[index])
         shape = item["image"].shape
         starts = [np.random.randint(max(size - length, 0) + 1)

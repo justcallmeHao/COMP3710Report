@@ -11,6 +11,7 @@ from .model2d import UNet2D
 
 @torch.inference_mode()
 def slice_logits(model, item, device, amp):
+    """assemble full-slice logits from tiled predictions"""
     shape = item["image"].shape
     input_size, output_size = model.input_patch_size, model.output_patch_size
     padded = pad_image(item["image"], input_size, output_size)
@@ -26,11 +27,13 @@ def slice_logits(model, item, device, amp):
 
 @torch.inference_mode()
 def infer_slice(model, item, device, amp):
+    """predict class indices for a full image slice"""
     logits = slice_logits(model, item, device, amp)
     return logits.argmax(1)[0].cpu().numpy().astype(np.int16)
 
 
 def save_prediction(path, labels, case):
+    """save predicted source labels with the original scan geometry"""
     original = nib.load(ROOT / case["image"])
     header = original.header.copy()
     header.set_data_dtype(np.int16)
@@ -42,6 +45,7 @@ def save_prediction(path, labels, case):
 
 @torch.inference_mode()
 def predict(config):
+    """load a checkpoint and save predictions for the requested patient split"""
     settings = config["inference"]
     run_id = config["run_id"]
     run = OUTPUTS / run_id

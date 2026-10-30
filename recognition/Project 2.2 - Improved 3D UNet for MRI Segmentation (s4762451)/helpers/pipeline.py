@@ -2,6 +2,7 @@ from copy import deepcopy
 
 
 def run_pipeline(config, *, train, predict, evaluate, plot):
+    """run enabled stages with separate validation and test outputs"""
     stages = config["pipeline"]
     if stages["train"]:
         train(config)

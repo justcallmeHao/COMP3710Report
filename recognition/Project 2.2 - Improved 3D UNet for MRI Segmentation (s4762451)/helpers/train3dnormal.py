@@ -17,6 +17,7 @@ from .predict3dnormal import infer_volume
 
 
 def segmentation_loss(logits, target, settings):
+    """calculate dice and cross entropy losses while ignoring padded voxels"""
     target = target[:, 0].long()
     valid = (target != -100).unsqueeze(1)
     classes = logits.shape[1]
@@ -31,6 +32,7 @@ def segmentation_loss(logits, target, settings):
 
 
 def train_epoch(model, loader, loss_settings, optimizer, scaler, device, amp):
+    """train for one epoch and return mean losses"""
     model.train()
     totals = []
     for batch in loader:
@@ -49,6 +51,7 @@ def train_epoch(model, loader, loss_settings, optimizer, scaler, device, amp):
 
 @torch.inference_mode()
 def validate(model, cases, config, device, amp):
+    """return mean validation losses and per-class scan metrics"""
     model.eval()
     losses, rows = [], []
     for case in cases:
@@ -62,6 +65,7 @@ def validate(model, cases, config, device, amp):
 
 
 def run_training(config, cases, splits, directory, device, amp):
+    """train and validate the model while saving metrics and the best checkpoint"""
     resolved = resolve_spacing(config)
     settings = resolved["training"]
     training_cases = select_cases(cases, splits["train"])
@@ -122,6 +126,7 @@ def run_training(config, cases, splits, directory, device, amp):
 
 
 def train(config):
+    """prepare the data and output directory and run model training"""
     directory = OUTPUTS / config["run_id"]
     splits = read_json(ROOT / config["data"]["splits_file"])
     cases = discover(config)

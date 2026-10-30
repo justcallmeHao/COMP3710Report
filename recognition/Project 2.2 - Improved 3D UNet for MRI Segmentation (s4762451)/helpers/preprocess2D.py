@@ -10,12 +10,14 @@ PREPROCESSED = ROOT / "data/preprocess2d"
 
 
 def map_labels(values, id_to_source):
+    """map source label IDs to consecutive class indices"""
     mapping = {source: index for index, source in enumerate(id_to_source)}
     sources, inverse = np.unique(values, return_inverse=True)
     return np.asarray([mapping[source] for source in sources], dtype=np.uint8)[inverse].reshape(values.shape)
 
 
 def preprocess():
+    """cache normalized image slices, aligned labels, and source geometry"""
     if PREPROCESSED.exists():
         print("Already preprocessed 2D data")
         return

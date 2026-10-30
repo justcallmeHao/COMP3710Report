@@ -3,6 +3,7 @@ from torch import nn
 
 
 def double_conv(in_channels, middle_channels, out_channels, settings):
+    """build two unpadded 3D convolutions with batch normalization and ReLU"""
     layers = []
     for before, after in ((in_channels, middle_channels), (middle_channels, out_channels)):
         layers.extend([
@@ -17,6 +18,7 @@ def double_conv(in_channels, middle_channels, out_channels, settings):
 
 class UNet3D(nn.Module):
     def __init__(self, settings, in_channels, classes):
+        """build the baseline 3D U-Net encoder, decoder, and output layer"""
         super().__init__()
         channels = settings["channels"]
         self.encoders = nn.ModuleList([
@@ -37,6 +39,7 @@ class UNet3D(nn.Module):
                                 padding=0, bias=True)
 
     def forward(self, image):
+        """predict voxel class logits using cropped encoder skip connections"""
         skips = []
         for encoder in self.encoders[:-1]:
             image = encoder(image)

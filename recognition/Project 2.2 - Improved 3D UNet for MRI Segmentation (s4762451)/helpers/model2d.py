@@ -3,6 +3,7 @@ from torch import nn
 
 
 def double_conv(in_channels, out_channels):
+    """build two unpadded 2D convolutions with ReLU activations"""
     return nn.Sequential(
         nn.Conv2d(in_channels, out_channels, 3, stride=1, padding=0, dilation=1, bias=True),
         nn.ReLU(),
@@ -13,6 +14,7 @@ def double_conv(in_channels, out_channels):
 
 class UNet2D(nn.Module):
     def __init__(self, settings, in_channels, classes):
+        """build the 2D U-Net encoder, decoder, and output layer"""
         super().__init__()
         channels = settings["channels"]
         self.input_patch_size = tuple(settings["input_patch_size"])
@@ -33,6 +35,7 @@ class UNet2D(nn.Module):
         self.output = nn.Conv2d(channels[0], classes, kernel_size=1, stride=1, padding=0, bias=True)
 
     def forward(self, image):
+        """predict pixel class logits using cropped encoder skip connections"""
         skips = []
         for encoder in self.encoders[:-1]:
             image = encoder(image)

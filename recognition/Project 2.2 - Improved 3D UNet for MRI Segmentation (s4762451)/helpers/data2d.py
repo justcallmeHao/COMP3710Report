@@ -11,14 +11,17 @@ OUTPUTS = ROOT / "outputs"
 
 
 def read_json(path):
+    """load data from a JSON file"""
     return json.loads(Path(path).read_text(encoding="utf-8"))
 
 
 def write_json(path, value):
+    """save data as indented JSON"""
     Path(path).write_text(json.dumps(value, indent=2, allow_nan=False), encoding="utf-8")
 
 
 def discover(partition):
+    """prepare cached slices and list those in the requested patient split"""
     preprocess()
     partition = "validation" if partition == "validate" else partition
     patients = read_json(ROOT / "configs/splits.json")[partition]
@@ -29,6 +32,7 @@ def discover(partition):
 
 
 def load_slice(case, with_label=True):
+    """load a cached image slice and optional labels"""
     directory = PREPROCESSED / case["patient_id"]
     names = ("image", "label") if with_label else ("image",)
     return {name: np.load(directory / f"{case['case_id']}_{name}.npy", mmap_mode="r")[case["slice_index"]]
@@ -36,12 +40,14 @@ def load_slice(case, with_label=True):
 
 
 def tile_regions(shape, output_size):
+    """yield tile positions and valid sizes covering a slice"""
     for top in range(0, shape[0], output_size[0]):
         for left in range(0, shape[1], output_size[1]):
             yield top, left, min(output_size[0], shape[0] - top), min(output_size[1], shape[1] - left)
 
 
 def pad_image(image, input_size, output_size):
+    """reflect-pad a slice for input context and complete output tiles"""
     padding = [((before - after) // 2, (before - after) // 2 + (-size) % after)
                for size, before, after in zip(image.shape, input_size, output_size)]
     return np.pad(image, padding, mode="reflect")
@@ -49,6 +55,7 @@ def pad_image(image, input_size, output_size):
 
 class SliceDataset(Dataset):
     def __init__(self, cases, settings):
+        """store slice settings and index all output tiles"""
         self.cases = cases
         self.input_size = settings["input_patch_size"]
         self.output_size = settings["output_patch_size"]
@@ -56,9 +63,11 @@ class SliceDataset(Dataset):
                       for region in tile_regions(case["geometry"]["original_shape"][:2], self.output_size)]
 
     def __len__(self):
+        """return the number of slice tiles"""
         return len(self.tiles)
 
     def __getitem__(self, index):
+        """return an image tile and labels with padded pixels marked to ignore"""
         case_index, (top, left, height, width) = self.tiles[index]
         item = load_slice(self.cases[case_index])
         padded = pad_image(item["image"], self.input_size, self.output_size)

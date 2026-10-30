@@ -12,15 +12,18 @@ from dataset import OUTPUTS, ROOT, map_labels, read_json
 
 
 def csv_rows(path):
+    """read CSV rows as dictionaries"""
     with Path(path).open(newline="", encoding="utf-8") as stream:
         return list(csv.DictReader(stream))
 
 
 def column(rows, name):
+    """extract a numeric column and replace empty values with NaN"""
     return np.asarray([float(row[name]) if row[name] else np.nan for row in rows])
 
 
 def learning_curves(run, destination, settings):
+    """save plots of losses, validation scores, learning rates, and epoch times"""
     rows = csv_rows(run / "epochs.csv")
     epochs = column(rows, "epoch")
     fig, axes = plt.subplots(2, 3, figsize=settings["figure_size"], layout="constrained")
@@ -48,6 +51,7 @@ def learning_curves(run, destination, settings):
 
 
 def score_boxes(path, destination, settings):
+    """save per-class metric box plots with individual scores"""
     rows = csv_rows(path)
     names = list(dict.fromkeys(row["class_name"] for row in rows))
     random = np.random.default_rng()
@@ -66,6 +70,7 @@ def score_boxes(path, destination, settings):
 
 
 def overlays(prediction_dir, destination, settings):
+    """save scan views with reference labels, predictions, and errors"""
     manifest = read_json(prediction_dir / "predictions.json")
     config = manifest["config"]
     cases = manifest["cases"]
@@ -103,6 +108,7 @@ def overlays(prediction_dir, destination, settings):
 
 
 def inference_times(prediction_dir, destination, settings):
+    """save a plot of recorded inference times by case"""
     manifest = read_json(prediction_dir / "predictions.json")
     cases = [case for case in manifest["cases"]
              if case.get("inference_seconds") is not None]
@@ -118,6 +124,7 @@ def inference_times(prediction_dir, destination, settings):
 
 
 def plot(config, include_training=True):
+    """save the configured training and prediction figures"""
     settings = config["graphs"]
     run = OUTPUTS / config["run_id"]
     destination = run / settings["figure_id"]

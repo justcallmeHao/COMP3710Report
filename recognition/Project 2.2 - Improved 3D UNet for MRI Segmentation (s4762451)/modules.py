@@ -4,10 +4,12 @@ from torch.nn import functional as F
 
 
 def spatial_tuple(value):
+    """convert a scalar or sequence to a spatial tuple"""
     return (value,) * 3 if isinstance(value, int) else tuple(value) 
 
 class ResidualBlock(nn.Module):
     def __init__(self, channels, settings):
+        """build a 3D residual branch with normalization and dropout"""
         super().__init__()
         kernel = spatial_tuple(settings["kernel_size"])
         # preserve spatial size for odd kernels
@@ -24,11 +26,13 @@ class ResidualBlock(nn.Module):
         )
 
     def forward(self, image):
+        """add residual features to the input"""
         return self.main(image) + image  # add the residual branch to the unchanged input
 
 
 class ResidualUNet3D(nn.Module):
     def __init__(self, settings, in_channels, classes):
+        """build the residual 3D U-Net encoder, decoder, and output layers"""
         super().__init__()
         channels, strides = settings["channels"], settings["strides"]
         kernel = spatial_tuple(settings["kernel_size"])
@@ -63,6 +67,7 @@ class ResidualUNet3D(nn.Module):
         ])
 
     def forward(self, image):
+        """encode and decode a volume and combine multiscale class logits"""
         image = self.encoders[0](self.input(image))
         skips = [image]  # retain encoder features for decoder skip connections
         for downsample, encoder in zip(self.downsamples, self.encoders[1:]):

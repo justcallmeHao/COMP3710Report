@@ -15,6 +15,7 @@ from .predict2d import slice_logits
 
 
 def versions(device):
+    """collect package versions and compute device details"""
     return {"python": platform.python_version(),
             "packages": {name: importlib.metadata.version(name)
                          for name in ("torch", "scipy", "numpy", "nibabel")},
@@ -23,6 +24,7 @@ def versions(device):
 
 
 def segmentation_loss(logits, target, settings):
+    """calculate dice and cross-entropy losses while ignoring padded pixels"""
     target = target[:, 0].long()
     valid = (target != -100).unsqueeze(1)
     probabilities = logits.float().softmax(1) * valid
@@ -41,6 +43,7 @@ def segmentation_loss(logits, target, settings):
 
 
 def train_epoch(model, loader, loss_settings, optimizer, scaler, device, amp):
+    """train for one epoch and return mean losses"""
     model.train()
     totals = np.zeros(3)
     count = 0
@@ -61,6 +64,7 @@ def train_epoch(model, loader, loss_settings, optimizer, scaler, device, amp):
 
 @torch.inference_mode()
 def validate(model, cases, config, device, amp):
+    """return mean validation losses and per-class slice metrics"""
     model.eval()
     rows = []
     totals = np.zeros(3)
@@ -78,6 +82,7 @@ def validate(model, cases, config, device, amp):
 
 
 def run_training(config, training_cases, validation_cases, directory, device, amp):
+    """train and validate the model while saving metrics and the best checkpoint"""
     settings = config["training"]
     id_to_source = config["labels"]["id_to_source"]
     training = DataLoader(SliceDataset(training_cases, config["model"]), batch_size=settings["batch_size"],
@@ -146,6 +151,7 @@ def run_training(config, training_cases, validation_cases, directory, device, am
 
 
 def train(config):
+    """prepare the data and output directory and run model training"""
     run_id = config["run_id"]
     config = {**config, "run_id": run_id, "labels": read_json(ROOT / "configs/labels.json")}
     directory = OUTPUTS / run_id

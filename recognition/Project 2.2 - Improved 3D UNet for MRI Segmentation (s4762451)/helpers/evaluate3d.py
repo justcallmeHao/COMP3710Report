@@ -13,12 +13,14 @@ METRICS = ("dice", "precision", "recall", "iou")
 
 def label_tensor(path, config):
     # load source labels and convert them to batched class indices
+    """load a label volume as batched class indices"""
     values = np.asanyarray(nib.load(path).dataobj)
     return torch.from_numpy(map_labels(values, config["labels"]["id_to_source"])).long().unsqueeze(0)
 
 
 def case_metrics(prediction, target, case, config):
     # flatten labels and select foreground classes for scoring
+    """return foreground metrics and availability flags for one scan"""
     classes = len(config["labels"]["names"])
     pred, truth = prediction.numpy().ravel(), target.numpy().ravel()
     labels = list(range(1, classes))
@@ -52,6 +54,7 @@ def case_metrics(prediction, target, case, config):
 
 def statistics(values):
     # exclude values before summarising
+    """summarize finite values with mean, standard deviation, and availability counts"""
     valid = [value for value in values if value is not None and np.isfinite(value)]
 
     # report the mean, spread, and included and excluded counts
@@ -61,6 +64,7 @@ def statistics(values):
 
 
 def summarize(rows, config):
+    """average scan metrics by patient and class and check the dice target"""
     patients = sorted({row["patient_id"] for row in rows})
     patient_rows, classes = [], []
 
@@ -109,6 +113,7 @@ def summarize(rows, config):
 
 
 def write_csv(path, rows):
+    """write metric rows to a CSV file with a header"""
     with path.open("w", newline="", encoding="utf-8") as stream:
         writer = csv.DictWriter(stream, fieldnames=list(rows[0]))
         writer.writeheader()
@@ -116,6 +121,7 @@ def write_csv(path, rows):
 
 
 def save_metrics(directory, prefix, rows, config):
+    """save case metrics, patient averages, and summary statistics"""
     patient_rows, summary = summarize(rows, config)
     write_csv(directory / f"{prefix}-cases.csv", rows)
     write_json(directory / f"{prefix}-cases.json", rows)
@@ -126,6 +132,7 @@ def save_metrics(directory, prefix, rows, config):
 
 def evaluate(requested):
     # load the saved prediction manifest
+    """score saved prediction volumes and save aggregated metrics"""
     directory = OUTPUTS / requested["run_id"] / requested["inference"]["prediction_id"]
     manifest = read_json(directory / "predictions.json")
     config, rows = manifest["config"], []

@@ -9,6 +9,7 @@ from helpers.train2d import train
 
 
 def main():
+    """load the 2D config and run the enabled pipeline stages"""
     config = json.loads((ROOT / "configs/training2d.json").read_text(encoding="utf-8"))
     run_pipeline(config, train=train, predict=predict, evaluate=evaluate, plot=plot)
 

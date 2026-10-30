@@ -14,6 +14,7 @@ from modules import ResidualUNet3D
 
 
 def select_device(use_amp):
+    """select the compute device and supported mixed precision mode"""
     cuda = torch.cuda.is_available()
     device = torch.device("cuda" if cuda else "cpu")
     amp = bool(use_amp and cuda and torch.cuda.get_device_capability()[0] >= 7)
@@ -23,6 +24,7 @@ def select_device(use_amp):
 
 
 def versions(device):
+    """collect package versions and compute device details"""
     return {"python": platform.python_version(),
             "packages": {name: importlib.metadata.version(name) for name in
                          ("torch", "torchmetrics", "scipy", "numpy", "nibabel", "scikit-learn", "matplotlib")},
@@ -32,12 +34,14 @@ def versions(device):
 
 def window_starts(size, patch, overlap):
     # space windows by the overlap and include the final boundary
+    """return overlapping window positions including the final boundary"""
     step = max(1, int(patch * (1 - overlap)))
     return sorted(set([*range(0, size - patch + 1, step), size - patch]))
 
 
 def restore_probabilities(probabilities, geometry):
     # recover the crop bounds and original scan geometry
+    """restore class probabilities to the original scan geometry"""
     region = tuple(slice(a, b) for a, b in zip(geometry["crop_start"], geometry["crop_end"]))
     target = (tuple(geometry["original_shape"]), np.asarray(geometry["original_affine"]))
 
@@ -55,6 +59,7 @@ def restore_probabilities(probabilities, geometry):
 
 @torch.inference_mode()
 def infer_volume(model, item, config, device, amp):
+    """blend sliding window predictions and restore probabilities to the original grid"""
     settings = config["inference"]
     patch = settings["patch_size"]
     image = torch.from_numpy(item["image"]).unsqueeze(0)
@@ -106,6 +111,7 @@ def infer_volume(model, item, config, device, amp):
 
 
 def save_prediction(path, labels, case, config):
+    """map class indices to source labels and save them with the original scan geometry"""
     original = nib.load(ROOT / case["image"])
     inverse = np.asarray(config["labels"]["id_to_source"], dtype=np.int16)
     source_labels = inverse[labels.numpy()]
@@ -120,6 +126,7 @@ def save_prediction(path, labels, case, config):
 
 def predict(requested):
     # load the selected model checkpoint
+    """load a checkpoint and save predictions for the requested patient split"""
     settings = requested["inference"]
     run = OUTPUTS / requested["run_id"]
     checkpoint_path = run / f"{settings['checkpoint']}.pt"
@@ -188,7 +195,7 @@ def predict(requested):
 
 
 def main():
-    """Load saved weights, predict the configured split, evaluate, and draw overlays."""
+    """predict the configured split, evaluate results, and save figures"""
     from dataset import read_json
     from graphs.plot import plot
     from helpers.evaluate3d import evaluate
