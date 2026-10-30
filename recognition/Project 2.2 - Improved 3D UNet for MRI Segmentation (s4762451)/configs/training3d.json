@@ -1,9 +1,9 @@
 {
   "run_id": "improved_3d_unet",
   "pipeline": {
-    "train": false,
-    "predict": false,
-    "evaluate": false,
+    "train": true,
+    "predict": true,
+    "evaluate": true,
     "test": true,
     "plot": true
   },
