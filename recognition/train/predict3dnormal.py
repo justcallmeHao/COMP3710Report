@@ -15,32 +15,36 @@ def infer_volume(model, item, config, device, amp):
     patch, output_size = settings["patch_size"], settings["output_patch_size"]
     original_shape = item["image"].shape
     shape = tuple(max(size, length) for size, length in zip(original_shape, output_size))
-    image = torch.from_numpy(pad_image(item["image"], patch, output_size)).unsqueeze(0)
+    # transfer once, assemble windows and blend predictions on the inference device
+    image = torch.from_numpy(pad_image(item["image"], patch, output_size)).unsqueeze(0).to(device)
     # Positions and Gaussian weights describe output regions, not input tiles.
     coordinates = list(product(*(window_starts(size, length, settings["overlap"])
                                  for size, length in zip(shape, output_size))))
-    axes = [torch.arange(length, dtype=torch.float32) - (length - 1) / 2 for length in output_size]
+    axes = [torch.arange(length, dtype=torch.float32, device=device) - (length - 1) / 2
+            for length in output_size]
     grid = torch.meshgrid(*axes, indexing="ij")
     exponent = sum((axis / (length * settings["sigma_scale"])) ** 2
                    for axis, length in zip(grid, output_size))
     weight = torch.exp(-0.5 * exponent).clamp_min(settings["weight_floor"])
-    logits = torch.zeros((len(config["labels"]["names"]), *shape), dtype=torch.float32)
-    weights = torch.zeros(shape, dtype=torch.float32)
+    logits = torch.zeros((len(config["labels"]["names"]), *shape), dtype=torch.float32, device=device)
+    weights = torch.zeros(shape, dtype=torch.float32, device=device)
 
     for offset in range(0, len(coordinates), settings["batch_size"]):
         locations = coordinates[offset:offset + settings["batch_size"]]
         regions = [tuple(slice(start, start + size) for start, size in zip(point, patch))
                    for point in locations]
-        batch = torch.stack([image[(slice(None), *region)] for region in regions]).to(device)
+        batch = torch.stack([image[(slice(None), *region)] for region in regions])
         with torch.autocast(device_type=device.type, dtype=torch.float16, enabled=amp):
             outputs = model(batch)
-        for output, point in zip(outputs.float().cpu(), locations):
+        for output, point in zip(outputs.float(), locations):
             region = tuple(slice(start, start + size) for start, size in zip(point, output_size))
             logits[(slice(None), *region)] += output * weight
             weights[region] += weight
 
     logits /= weights
-    logits = logits[(slice(None), *(slice(0, size) for size in original_shape))]
+
+    # relieve workload onto cpu
+    logits = logits[(slice(None), *(slice(0, size) for size in original_shape))].cpu()
     probabilities = restore_probabilities(logits.softmax(0), item["geometry"])
     return logits.unsqueeze(0), probabilities
 
